@@ -1,0 +1,2642 @@
+{
+  "components": {
+    "schemas": {
+      "CounterCoverage": {
+        "description": "How much of the fabric the window actually saw.\n\n`unsupported` is fabric-level and per counter, because a counter no port can\nreport is a property of the hardware rather than of any one port -- and\nsaying it once keeps it off every port row. It is what lets the UI grey\nout a checkbox instead of showing a column of honest, useless zeros.",
+        "properties": {
+          "ports_expected": {
+            "title": "Ports Expected",
+            "type": "integer"
+          },
+          "ports_measured": {
+            "title": "Ports Measured",
+            "type": "integer"
+          },
+          "ports_no_data": {
+            "title": "Ports No Data",
+            "type": "integer"
+          },
+          "ports_partial": {
+            "title": "Ports Partial",
+            "type": "integer"
+          },
+          "ports_reset": {
+            "title": "Ports Reset",
+            "type": "integer"
+          },
+          "sweeps": {
+            "title": "Sweeps",
+            "type": "integer"
+          },
+          "unsupported": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "propertyNames": {
+              "enum": [
+                "symbol_error",
+                "link_error_recovery",
+                "link_downed",
+                "rcv_errors",
+                "rcv_remote_phys_errors",
+                "rcv_switch_relay_errors",
+                "xmit_discards",
+                "xmit_constraint_errors",
+                "rcv_constraint_errors",
+                "local_link_integrity",
+                "excessive_buffer_overrun",
+                "vl15_dropped",
+                "xmit_wait",
+                "qp1_dropped"
+              ]
+            },
+            "title": "Unsupported",
+            "type": "object"
+          }
+        },
+        "required": [
+          "ports_expected",
+          "ports_measured",
+          "ports_no_data",
+          "ports_reset",
+          "ports_partial",
+          "sweeps"
+        ],
+        "title": "CounterCoverage",
+        "type": "object"
+      },
+      "CounterWindow": {
+        "description": "Which readings actually bounded the delta.\n\nRequested and observed instants are both present and they differ, because\ncounters are sampled discretely: a request for 09:00 is answered by whatever\nreading sat nearest it. A client drawing a per-hour figure from a span that\nis not quite an hour is wrong, and without this cannot know it.",
+        "properties": {
+          "first_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First At"
+          },
+          "last_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last At"
+          },
+          "requested_since": {
+            "format": "date-time",
+            "title": "Requested Since",
+            "type": "string"
+          },
+          "requested_until": {
+            "format": "date-time",
+            "title": "Requested Until",
+            "type": "string"
+          },
+          "resolution": {
+            "enum": [
+              "raw",
+              "hourly"
+            ],
+            "title": "Resolution",
+            "type": "string"
+          },
+          "span_s": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Span S"
+          }
+        },
+        "required": [
+          "requested_since",
+          "requested_until",
+          "resolution"
+        ],
+        "title": "CounterWindow",
+        "type": "object"
+      },
+      "Counts": {
+        "properties": {
+          "cas": {
+            "default": 0,
+            "title": "Cas",
+            "type": "integer"
+          },
+          "health": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "propertyNames": {
+              "enum": [
+                "ok",
+                "degraded",
+                "down",
+                "unknown"
+              ]
+            },
+            "title": "Health",
+            "type": "object"
+          },
+          "links": {
+            "default": 0,
+            "title": "Links",
+            "type": "integer"
+          },
+          "nodes": {
+            "default": 0,
+            "title": "Nodes",
+            "type": "integer"
+          },
+          "routers": {
+            "default": 0,
+            "title": "Routers",
+            "type": "integer"
+          },
+          "switches": {
+            "default": 0,
+            "title": "Switches",
+            "type": "integer"
+          }
+        },
+        "title": "Counts",
+        "type": "object"
+      },
+      "Diff": {
+        "description": "The union of both endpoints' topologies, annotated.\n\nUnion rather than a change-list: a removed link is absent from the `to`\ntopology, so a client given only the changes could not draw the ghost.\n\n`churn` counts events regardless of net change, because a link that flapped\nrepeatedly and came back is byte-identical in a net diff and is probably the\nmost interesting thing in the range.\n\n`system_groups` is the union of both endpoints', so a chassis that lost its\nlast node is still there for the removed children to sit inside.",
+        "properties": {
+          "fabric": {
+            "title": "Fabric",
+            "type": "string"
+          },
+          "links": {
+            "items": {
+              "$ref": "#/components/schemas/DiffLink"
+            },
+            "title": "Links",
+            "type": "array"
+          },
+          "nodes": {
+            "items": {
+              "$ref": "#/components/schemas/DiffNode"
+            },
+            "title": "Nodes",
+            "type": "array"
+          },
+          "since": {
+            "$ref": "#/components/schemas/Resolved"
+          },
+          "system_groups": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/SystemGroup"
+            },
+            "title": "System Groups",
+            "type": "object"
+          },
+          "unchanged_guaranteed": {
+            "default": false,
+            "title": "Unchanged Guaranteed",
+            "type": "boolean"
+          },
+          "until": {
+            "$ref": "#/components/schemas/Resolved"
+          }
+        },
+        "required": [
+          "fabric",
+          "since",
+          "until",
+          "nodes",
+          "links"
+        ],
+        "title": "Diff",
+        "type": "object"
+      },
+      "DiffLink": {
+        "properties": {
+          "after": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LinkElement"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "before": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LinkElement"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "change": {
+            "enum": [
+              "added",
+              "removed",
+              "modified",
+              "unchanged"
+            ],
+            "title": "Change",
+            "type": "string"
+          },
+          "churn": {
+            "default": 0,
+            "title": "Churn",
+            "type": "integer"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "change"
+        ],
+        "title": "DiffLink",
+        "type": "object"
+      },
+      "DiffNode": {
+        "properties": {
+          "after": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/NodeElement"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "before": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/NodeElement"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "change": {
+            "enum": [
+              "added",
+              "removed",
+              "modified",
+              "unchanged"
+            ],
+            "title": "Change",
+            "type": "string"
+          },
+          "churn": {
+            "default": 0,
+            "title": "Churn",
+            "type": "integer"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "change"
+        ],
+        "title": "DiffNode",
+        "type": "object"
+      },
+      "ErrorDeltas": {
+        "properties": {
+          "counters": {
+            "items": {
+              "enum": [
+                "symbol_error",
+                "link_error_recovery",
+                "link_downed",
+                "rcv_errors",
+                "rcv_remote_phys_errors",
+                "rcv_switch_relay_errors",
+                "xmit_discards",
+                "xmit_constraint_errors",
+                "rcv_constraint_errors",
+                "local_link_integrity",
+                "excessive_buffer_overrun",
+                "vl15_dropped",
+                "xmit_wait",
+                "qp1_dropped"
+              ],
+              "type": "string"
+            },
+            "title": "Counters",
+            "type": "array"
+          },
+          "coverage": {
+            "$ref": "#/components/schemas/CounterCoverage"
+          },
+          "fabric": {
+            "title": "Fabric",
+            "type": "string"
+          },
+          "ports": {
+            "items": {
+              "$ref": "#/components/schemas/PortErrorDelta"
+            },
+            "title": "Ports",
+            "type": "array"
+          },
+          "window": {
+            "$ref": "#/components/schemas/CounterWindow"
+          }
+        },
+        "required": [
+          "fabric",
+          "window",
+          "coverage",
+          "counters",
+          "ports"
+        ],
+        "title": "ErrorDeltas",
+        "type": "object"
+      },
+      "Event": {
+        "properties": {
+          "detail": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          },
+          "event_id": {
+            "title": "Event Id",
+            "type": "integer"
+          },
+          "event_type": {
+            "title": "Event Type",
+            "type": "string"
+          },
+          "link_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Link Id"
+          },
+          "node_guid": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Node Guid"
+          },
+          "node_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Node Label"
+          },
+          "occurred_at": {
+            "format": "date-time",
+            "title": "Occurred At",
+            "type": "string"
+          },
+          "peer_guid": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Peer Guid"
+          },
+          "peer_port_num": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Peer Port Num"
+          },
+          "port_num": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Port Num"
+          },
+          "snapshot_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Snapshot Id"
+          }
+        },
+        "required": [
+          "event_id",
+          "occurred_at",
+          "event_type"
+        ],
+        "title": "Event",
+        "type": "object"
+      },
+      "Events": {
+        "properties": {
+          "events": {
+            "items": {
+              "$ref": "#/components/schemas/Event"
+            },
+            "title": "Events",
+            "type": "array"
+          },
+          "fabric": {
+            "title": "Fabric",
+            "type": "string"
+          },
+          "since": {
+            "format": "date-time",
+            "title": "Since",
+            "type": "string"
+          },
+          "truncated": {
+            "default": false,
+            "title": "Truncated",
+            "type": "boolean"
+          },
+          "until": {
+            "format": "date-time",
+            "title": "Until",
+            "type": "string"
+          }
+        },
+        "required": [
+          "fabric",
+          "since",
+          "until",
+          "events"
+        ],
+        "title": "Events",
+        "type": "object"
+      },
+      "FabricRow": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "fabric_id": {
+            "title": "Fabric Id",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "subnet_prefix": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subnet Prefix"
+          }
+        },
+        "required": [
+          "fabric_id",
+          "name",
+          "created_at"
+        ],
+        "title": "FabricRow",
+        "type": "object"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "Head": {
+        "description": "Cheap poll target. Refetch topology only when topology_hash moves.",
+        "properties": {
+          "counts": {
+            "$ref": "#/components/schemas/Counts"
+          },
+          "fabric": {
+            "title": "Fabric",
+            "type": "string"
+          },
+          "resolved": {
+            "$ref": "#/components/schemas/Resolved"
+          }
+        },
+        "required": [
+          "fabric",
+          "resolved",
+          "counts"
+        ],
+        "title": "Head",
+        "type": "object"
+      },
+      "LinkDetail": {
+        "properties": {
+          "a": {
+            "$ref": "#/components/schemas/LinkEnd"
+          },
+          "b": {
+            "$ref": "#/components/schemas/LinkEnd"
+          },
+          "health": {
+            "enum": [
+              "ok",
+              "degraded",
+              "down",
+              "unknown"
+            ],
+            "title": "Health",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "reason": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Reason",
+            "type": "array"
+          },
+          "resolved": {
+            "$ref": "#/components/schemas/Resolved"
+          }
+        },
+        "required": [
+          "resolved",
+          "id",
+          "health",
+          "a",
+          "b"
+        ],
+        "title": "LinkDetail",
+        "type": "object"
+      },
+      "LinkElement": {
+        "properties": {
+          "health": {
+            "enum": [
+              "ok",
+              "degraded",
+              "down",
+              "unknown"
+            ],
+            "title": "Health",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "rate_gbps": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rate Gbps"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          },
+          "source_port": {
+            "title": "Source Port",
+            "type": "integer"
+          },
+          "speed": {
+            "$ref": "#/components/schemas/Rate"
+          },
+          "target": {
+            "title": "Target",
+            "type": "string"
+          },
+          "target_port": {
+            "title": "Target Port",
+            "type": "integer"
+          },
+          "width": {
+            "$ref": "#/components/schemas/Rate"
+          }
+        },
+        "required": [
+          "id",
+          "source",
+          "target",
+          "source_port",
+          "target_port",
+          "health"
+        ],
+        "title": "LinkElement",
+        "type": "object"
+      },
+      "LinkEnd": {
+        "properties": {
+          "guid": {
+            "title": "Guid",
+            "type": "string"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "port": {
+            "$ref": "#/components/schemas/PortDetail"
+          },
+          "type": {
+            "anyOf": [
+              {
+                "enum": [
+                  "ca",
+                  "switch",
+                  "router"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Type"
+          }
+        },
+        "required": [
+          "guid",
+          "port"
+        ],
+        "title": "LinkEnd",
+        "type": "object"
+      },
+      "NodeDetail": {
+        "properties": {
+          "desc": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Desc"
+          },
+          "device_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Device Id"
+          },
+          "first_seen": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First Seen"
+          },
+          "fw_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fw Version"
+          },
+          "guid": {
+            "title": "Guid",
+            "type": "string"
+          },
+          "health": {
+            "enum": [
+              "ok",
+              "degraded",
+              "down",
+              "unknown"
+            ],
+            "title": "Health",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          },
+          "num_ports": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Num Ports"
+          },
+          "ports": {
+            "items": {
+              "$ref": "#/components/schemas/PortDetail"
+            },
+            "title": "Ports",
+            "type": "array"
+          },
+          "resolved": {
+            "$ref": "#/components/schemas/Resolved"
+          },
+          "sm_state": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sm State"
+          },
+          "system_image_guid": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "System Image Guid"
+          },
+          "type": {
+            "enum": [
+              "ca",
+              "switch",
+              "router"
+            ],
+            "title": "Type",
+            "type": "string"
+          },
+          "vendor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vendor"
+          },
+          "vendor_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vendor Id"
+          }
+        },
+        "required": [
+          "resolved",
+          "guid",
+          "label",
+          "type",
+          "health"
+        ],
+        "title": "NodeDetail",
+        "type": "object"
+      },
+      "NodeElement": {
+        "properties": {
+          "health": {
+            "enum": [
+              "ok",
+              "degraded",
+              "down",
+              "unknown"
+            ],
+            "title": "Health",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "num_ports": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Num Ports"
+          },
+          "sm_role": {
+            "anyOf": [
+              {
+                "enum": [
+                  "discovering",
+                  "standby",
+                  "master"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sm Role"
+          },
+          "system_image_guid": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "System Image Guid"
+          },
+          "type": {
+            "enum": [
+              "ca",
+              "switch",
+              "router"
+            ],
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "type",
+          "health"
+        ],
+        "title": "NodeElement",
+        "type": "object"
+      },
+      "Peer": {
+        "description": "The far end of a port's link, resolved so a panel needs no second fetch.",
+        "properties": {
+          "guid": {
+            "title": "Guid",
+            "type": "string"
+          },
+          "health": {
+            "anyOf": [
+              {
+                "enum": [
+                  "ok",
+                  "degraded",
+                  "down",
+                  "unknown"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Health"
+          },
+          "link_id": {
+            "title": "Link Id",
+            "type": "string"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "port_num": {
+            "title": "Port Num",
+            "type": "integer"
+          },
+          "type": {
+            "anyOf": [
+              {
+                "enum": [
+                  "ca",
+                  "switch",
+                  "router"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Type"
+          }
+        },
+        "required": [
+          "guid",
+          "port_num",
+          "link_id"
+        ],
+        "title": "Peer",
+        "type": "object"
+      },
+      "PortDetail": {
+        "properties": {
+          "cable": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cable"
+          },
+          "check_events": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Check Events",
+            "type": "array"
+          },
+          "counters": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "integer"
+                },
+                "propertyNames": {
+                  "enum": [
+                    "symbol_error",
+                    "link_error_recovery",
+                    "link_downed",
+                    "rcv_errors",
+                    "rcv_remote_phys_errors",
+                    "rcv_switch_relay_errors",
+                    "xmit_discards",
+                    "xmit_constraint_errors",
+                    "rcv_constraint_errors",
+                    "local_link_integrity",
+                    "excessive_buffer_overrun",
+                    "vl15_dropped",
+                    "xmit_wait",
+                    "qp1_dropped"
+                  ]
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Counters"
+          },
+          "counters_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Counters At"
+          },
+          "counters_delta": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "integer"
+                },
+                "propertyNames": {
+                  "enum": [
+                    "symbol_error",
+                    "link_error_recovery",
+                    "link_downed",
+                    "rcv_errors",
+                    "rcv_remote_phys_errors",
+                    "rcv_switch_relay_errors",
+                    "xmit_discards",
+                    "xmit_constraint_errors",
+                    "rcv_constraint_errors",
+                    "local_link_integrity",
+                    "excessive_buffer_overrun",
+                    "vl15_dropped",
+                    "xmit_wait",
+                    "qp1_dropped"
+                  ]
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Counters Delta"
+          },
+          "counters_span_s": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Counters Span S"
+          },
+          "lid": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lid"
+          },
+          "mtu": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mtu"
+          },
+          "mtu_bytes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mtu Bytes"
+          },
+          "peer": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Peer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "phys_state": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phys State"
+          },
+          "port_guid": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Port Guid"
+          },
+          "port_num": {
+            "title": "Port Num",
+            "type": "integer"
+          },
+          "rate_gbps": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rate Gbps"
+          },
+          "speed_active": {
+            "$ref": "#/components/schemas/Rate"
+          },
+          "speed_enabled": {
+            "$ref": "#/components/schemas/Rate"
+          },
+          "speed_supported": {
+            "$ref": "#/components/schemas/Rate"
+          },
+          "state": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "State"
+          },
+          "traffic": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PortRate"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "width_active": {
+            "$ref": "#/components/schemas/Rate"
+          },
+          "width_enabled": {
+            "$ref": "#/components/schemas/Rate"
+          },
+          "width_supported": {
+            "$ref": "#/components/schemas/Rate"
+          }
+        },
+        "required": [
+          "port_num"
+        ],
+        "title": "PortDetail",
+        "type": "object"
+      },
+      "PortErrorDelta": {
+        "description": "One port's accumulation over the window.\n\nSparse in two directions: `d` carries only counters that moved, and a port\nwith nothing to say is absent entirely. That deliberately inverts the\nstorage decision -- the schema stores dense because columnar compression\nrewards it, while the wire is sparse because the client already holds the\nport universe and a healthy fabric is nearly all zeros.\n\nAbsence therefore means zero, which is only safe because every case where it\nwould instead mean *unknown* raises a flag below.\n\nEvery field below `port` keeps a default and the route serialises with\n`exclude_defaults`, so a clean row is `{\"node\", \"port\", \"d\"}`. The\nenvelope's fields stay required so the same switch cannot elide a zero that\nmeans something.",
+        "properties": {
+          "d": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "propertyNames": {
+              "enum": [
+                "symbol_error",
+                "link_error_recovery",
+                "link_downed",
+                "rcv_errors",
+                "rcv_remote_phys_errors",
+                "rcv_switch_relay_errors",
+                "xmit_discards",
+                "xmit_constraint_errors",
+                "rcv_constraint_errors",
+                "local_link_integrity",
+                "excessive_buffer_overrun",
+                "vl15_dropped",
+                "xmit_wait",
+                "qp1_dropped"
+              ]
+            },
+            "title": "D",
+            "type": "object"
+          },
+          "no_data": {
+            "default": false,
+            "title": "No Data",
+            "type": "boolean"
+          },
+          "node": {
+            "title": "Node",
+            "type": "string"
+          },
+          "partial": {
+            "default": false,
+            "title": "Partial",
+            "type": "boolean"
+          },
+          "port": {
+            "title": "Port",
+            "type": "integer"
+          },
+          "reset": {
+            "default": false,
+            "title": "Reset",
+            "type": "boolean"
+          },
+          "unsupported": {
+            "items": {
+              "enum": [
+                "symbol_error",
+                "link_error_recovery",
+                "link_downed",
+                "rcv_errors",
+                "rcv_remote_phys_errors",
+                "rcv_switch_relay_errors",
+                "xmit_discards",
+                "xmit_constraint_errors",
+                "rcv_constraint_errors",
+                "local_link_integrity",
+                "excessive_buffer_overrun",
+                "vl15_dropped",
+                "xmit_wait",
+                "qp1_dropped"
+              ],
+              "type": "string"
+            },
+            "title": "Unsupported",
+            "type": "array"
+          }
+        },
+        "required": [
+          "node",
+          "port"
+        ],
+        "title": "PortErrorDelta",
+        "type": "object"
+      },
+      "PortRate": {
+        "description": "One port's throughput over a trailing window, for a detail card.\n\nSeparate from `PortTraffic`, the overlay's sparse wire shape. This one is\nalready attached to the port it describes, so it carries no identity and\nelides nothing -- an idle port on a card reads \"0.00 Gbps\" rather than\nvanishing the way it does from the overlay payload.",
+        "properties": {
+          "at": {
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          },
+          "rx": {
+            "title": "Rx",
+            "type": "number"
+          },
+          "rxp": {
+            "title": "Rxp",
+            "type": "number"
+          },
+          "span_s": {
+            "title": "Span S",
+            "type": "number"
+          },
+          "tx": {
+            "title": "Tx",
+            "type": "number"
+          },
+          "txp": {
+            "title": "Txp",
+            "type": "number"
+          }
+        },
+        "required": [
+          "tx",
+          "rx",
+          "txp",
+          "rxp",
+          "span_s",
+          "at"
+        ],
+        "title": "PortRate",
+        "type": "object"
+      },
+      "PortTraffic": {
+        "description": "One port's rate over the window.\n\nGbps on the wire rather than raw octets: the conversion needs `xmit_data`'s\nx4 scaling, the span, and the knowledge that these are wire bytes -- three\nthings the server has and a client would have to be told.\n\nSparse on a floor rather than on a flag, because traffic is genuinely dense\nwhere errors are not. An omitted port is below `IDLE_FLOOR_GBPS` and reads\nas idle either way, which is most of the payload at a 5 s cadence.",
+        "properties": {
+          "no_data": {
+            "default": false,
+            "title": "No Data",
+            "type": "boolean"
+          },
+          "node": {
+            "title": "Node",
+            "type": "string"
+          },
+          "port": {
+            "title": "Port",
+            "type": "integer"
+          },
+          "reset": {
+            "default": false,
+            "title": "Reset",
+            "type": "boolean"
+          },
+          "rx": {
+            "default": 0.0,
+            "title": "Rx",
+            "type": "number"
+          },
+          "rxp": {
+            "default": 0.0,
+            "title": "Rxp",
+            "type": "number"
+          },
+          "tx": {
+            "default": 0.0,
+            "title": "Tx",
+            "type": "number"
+          },
+          "txp": {
+            "default": 0.0,
+            "title": "Txp",
+            "type": "number"
+          }
+        },
+        "required": [
+          "node",
+          "port"
+        ],
+        "title": "PortTraffic",
+        "type": "object"
+      },
+      "Rate": {
+        "description": "A speed or width, as stored and as read.",
+        "properties": {
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "mask": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mask"
+          }
+        },
+        "title": "Rate",
+        "type": "object"
+      },
+      "Resolved": {
+        "description": "Which sweep answered this request. Present on every time-parameterised\nresponse.\n\nBuilt from the `db.Resolved` dataclass the pool hands back.",
+        "properties": {
+          "collected_at": {
+            "format": "date-time",
+            "title": "Collected At",
+            "type": "string"
+          },
+          "latest_sweep_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest Sweep At"
+          },
+          "latest_sweep_complete": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest Sweep Complete"
+          },
+          "requested_at": {
+            "format": "date-time",
+            "title": "Requested At",
+            "type": "string"
+          },
+          "snapshot_id": {
+            "title": "Snapshot Id",
+            "type": "integer"
+          },
+          "topology_hash": {
+            "title": "Topology Hash",
+            "type": "string"
+          }
+        },
+        "required": [
+          "requested_at",
+          "snapshot_id",
+          "collected_at",
+          "topology_hash"
+        ],
+        "title": "Resolved",
+        "type": "object"
+      },
+      "SnapshotRow": {
+        "properties": {
+          "changed": {
+            "title": "Changed",
+            "type": "boolean"
+          },
+          "collected_at": {
+            "format": "date-time",
+            "title": "Collected At",
+            "type": "string"
+          },
+          "complete": {
+            "title": "Complete",
+            "type": "boolean"
+          },
+          "duration_ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration Ms"
+          },
+          "link_count": {
+            "title": "Link Count",
+            "type": "integer"
+          },
+          "node_count": {
+            "title": "Node Count",
+            "type": "integer"
+          },
+          "origin": {
+            "title": "Origin",
+            "type": "string"
+          },
+          "port_count": {
+            "title": "Port Count",
+            "type": "integer"
+          },
+          "snapshot_id": {
+            "title": "Snapshot Id",
+            "type": "integer"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "snapshot_id",
+          "collected_at",
+          "source",
+          "origin",
+          "changed",
+          "complete",
+          "node_count",
+          "port_count",
+          "link_count"
+        ],
+        "title": "SnapshotRow",
+        "type": "object"
+      },
+      "Snapshots": {
+        "description": "Written unconditionally by the collector, so a gap in this \nlist is a collector outage rather than a quiet fabric.",
+        "properties": {
+          "fabric": {
+            "title": "Fabric",
+            "type": "string"
+          },
+          "snapshots": {
+            "items": {
+              "$ref": "#/components/schemas/SnapshotRow"
+            },
+            "title": "Snapshots",
+            "type": "array"
+          }
+        },
+        "required": [
+          "fabric",
+          "snapshots"
+        ],
+        "title": "Snapshots",
+        "type": "object"
+      },
+      "SystemGroup": {
+        "properties": {
+          "children": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Children",
+            "type": "array"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "label",
+          "children"
+        ],
+        "title": "SystemGroup",
+        "type": "object"
+      },
+      "Topology": {
+        "properties": {
+          "counts": {
+            "$ref": "#/components/schemas/Counts"
+          },
+          "links": {
+            "items": {
+              "$ref": "#/components/schemas/LinkElement"
+            },
+            "title": "Links",
+            "type": "array"
+          },
+          "nodes": {
+            "items": {
+              "$ref": "#/components/schemas/NodeElement"
+            },
+            "title": "Nodes",
+            "type": "array"
+          },
+          "resolved": {
+            "$ref": "#/components/schemas/Resolved"
+          },
+          "system_groups": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/SystemGroup"
+            },
+            "title": "System Groups",
+            "type": "object"
+          }
+        },
+        "required": [
+          "resolved",
+          "counts",
+          "nodes",
+          "links",
+          "system_groups"
+        ],
+        "title": "Topology",
+        "type": "object"
+      },
+      "TrafficCoverage": {
+        "description": "How much of the fabric the rate window saw.\n\nDeliberately thinner than `CounterCoverage`: there is no `unsupported`,\nbecause PortXmitData and PortRcvData are mandatory in IBTA and no port\nfabricates them, and no `sweeps`, because a rate is bounded by two readings\nhowever many sat between them.",
+        "properties": {
+          "ports_expected": {
+            "title": "Ports Expected",
+            "type": "integer"
+          },
+          "ports_measured": {
+            "title": "Ports Measured",
+            "type": "integer"
+          },
+          "ports_no_data": {
+            "title": "Ports No Data",
+            "type": "integer"
+          },
+          "ports_reset": {
+            "title": "Ports Reset",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "ports_expected",
+          "ports_measured",
+          "ports_no_data",
+          "ports_reset"
+        ],
+        "title": "TrafficCoverage",
+        "type": "object"
+      },
+      "TrafficRates": {
+        "properties": {
+          "as_of": {
+            "format": "date-time",
+            "title": "As Of",
+            "type": "string"
+          },
+          "cadence_s": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cadence S"
+          },
+          "coverage": {
+            "$ref": "#/components/schemas/TrafficCoverage"
+          },
+          "fabric": {
+            "title": "Fabric",
+            "type": "string"
+          },
+          "first_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First At"
+          },
+          "ports": {
+            "items": {
+              "$ref": "#/components/schemas/PortTraffic"
+            },
+            "title": "Ports",
+            "type": "array"
+          },
+          "requested_window_s": {
+            "title": "Requested Window S",
+            "type": "number"
+          },
+          "span_s": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Span S"
+          }
+        },
+        "required": [
+          "fabric",
+          "as_of",
+          "requested_window_s",
+          "coverage",
+          "ports"
+        ],
+        "title": "TrafficRates",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "summary": "Read-only view of the InfiniBand fabric, at any point in time.",
+    "title": "ibmon read API",
+    "version": "1.0.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/api/v1/fabrics": {
+      "get": {
+        "operationId": "list_fabrics_api_v1_fabrics_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/FabricRow"
+                  },
+                  "title": "Response List Fabrics Api V1 Fabrics Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Fabrics",
+        "tags": [
+          "fabric"
+        ]
+      }
+    },
+    "/api/v1/fabrics/{fabric}/counters/errors": {
+      "get": {
+        "description": "Per-port error deltas over `(since, until]`, sparse.\n\nA port is present only if a counter moved or a flag is raised; everything\nabsent was measured, is zero, and is trusted. `coverage` is what makes that\nsafe to read -- check it before believing an empty `ports`.",
+        "operationId": "errors_api_v1_fabrics__fabric__counters_errors_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "fabric",
+            "required": true,
+            "schema": {
+              "title": "Fabric",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "since",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Since"
+            }
+          },
+          {
+            "in": "query",
+            "name": "until",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Until"
+            }
+          },
+          {
+            "description": "Seconds to look back before `since` for the baseline reading. 0 disables the asof baseline.",
+            "in": "query",
+            "name": "lookback",
+            "required": false,
+            "schema": {
+              "default": 900,
+              "description": "Seconds to look back before `since` for the baseline reading. 0 disables the asof baseline.",
+              "maximum": 86400,
+              "minimum": 0,
+              "title": "Lookback",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDeltas"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Errors",
+        "tags": [
+          "fabric"
+        ]
+      }
+    },
+    "/api/v1/fabrics/{fabric}/counters/traffic": {
+      "get": {
+        "description": "Per-port transmit and receive rates over a trailing window, sparse.\n\nA rate, not a delta: `at` names the instant to read *at*, and `window` only\nsays how long an interval to average over. Ports below the idle floor are\nomitted; ports that could not be measured are present and flagged, because\nan unpolled port and an idle one must not render alike.",
+        "operationId": "traffic_api_v1_fabrics__fabric__counters_traffic_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "fabric",
+            "required": true,
+            "schema": {
+              "title": "Fabric",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "at",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "At"
+            }
+          },
+          {
+            "description": "Trailing window in seconds. Defaults to three times the fabric's observed traffic cadence.",
+            "in": "query",
+            "name": "window",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "exclusiveMinimum": 0,
+                  "maximum": 3600,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Trailing window in seconds. Defaults to three times the fabric's observed traffic cadence.",
+              "title": "Window"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrafficRates"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Traffic",
+        "tags": [
+          "fabric"
+        ]
+      }
+    },
+    "/api/v1/fabrics/{fabric}/diff": {
+      "get": {
+        "description": "The union of both topologies, each element tagged with how it changed.",
+        "operationId": "diff_api_v1_fabrics__fabric__diff_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "fabric",
+            "required": true,
+            "schema": {
+              "title": "Fabric",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "since",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Since"
+            }
+          },
+          {
+            "in": "query",
+            "name": "until",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Until"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Diff"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Diff",
+        "tags": [
+          "fabric"
+        ]
+      }
+    },
+    "/api/v1/fabrics/{fabric}/events": {
+      "get": {
+        "description": "Newest first. Defaults to the last 24 hours.\n\nComplements the diff rather than duplicating it: a diff says a link is\nunchanged, this says it went down and came back forty times while nobody\nwas looking.",
+        "operationId": "events_api_v1_fabrics__fabric__events_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "fabric",
+            "required": true,
+            "schema": {
+              "title": "Fabric",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "since",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Since"
+            }
+          },
+          {
+            "in": "query",
+            "name": "until",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Until"
+            }
+          },
+          {
+            "in": "query",
+            "name": "type",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Type"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 500,
+              "maximum": 5000,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Events"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Events",
+        "tags": [
+          "fabric"
+        ]
+      }
+    },
+    "/api/v1/fabrics/{fabric}/head": {
+      "get": {
+        "description": "Cheap enough to poll. Refetch topology only when topology_hash moves.",
+        "operationId": "head_api_v1_fabrics__fabric__head_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "fabric",
+            "required": true,
+            "schema": {
+              "title": "Fabric",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "at",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "At"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Head"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Head",
+        "tags": [
+          "fabric"
+        ]
+      }
+    },
+    "/api/v1/fabrics/{fabric}/links/{link_id}": {
+      "get": {
+        "description": "Both ends expanded in place, so selecting a link is one request.\n\nThe id is the canonical GUID-ordered form; the database's own port_id\nordering never appears on the wire, so this parses without consulting it.",
+        "operationId": "link_api_v1_fabrics__fabric__links__link_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "fabric",
+            "required": true,
+            "schema": {
+              "title": "Fabric",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "link_id",
+            "required": true,
+            "schema": {
+              "title": "Link Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "at",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "At"
+            }
+          },
+          {
+            "description": "Seconds of counter history to summarise on each port. Omit for no counters. Pass the same window the overlay is using, or the card and the graph will disagree.",
+            "in": "query",
+            "name": "counters_window",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "exclusiveMinimum": 0,
+                  "maximum": 86400,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Seconds of counter history to summarise on each port. Omit for no counters. Pass the same window the overlay is using, or the card and the graph will disagree.",
+              "title": "Counters Window"
+            }
+          },
+          {
+            "description": "Include per-port throughput. The window is server-sized from the fabric's observed traffic cadence, matching the overlay.",
+            "in": "query",
+            "name": "with_traffic",
+            "required": false,
+            "schema": {
+              "default": false,
+              "description": "Include per-port throughput. The window is server-sized from the fabric's observed traffic cadence, matching the overlay.",
+              "title": "With Traffic",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LinkDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Link",
+        "tags": [
+          "fabric"
+        ]
+      }
+    },
+    "/api/v1/fabrics/{fabric}/nodes/{guid}": {
+      "get": {
+        "operationId": "node_api_v1_fabrics__fabric__nodes__guid__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "fabric",
+            "required": true,
+            "schema": {
+              "title": "Fabric",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "guid",
+            "required": true,
+            "schema": {
+              "title": "Guid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "at",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "At"
+            }
+          },
+          {
+            "description": "Seconds of counter history to summarise on each port. Omit for no counters. Pass the same window the overlay is using, or the card and the graph will disagree.",
+            "in": "query",
+            "name": "counters_window",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "exclusiveMinimum": 0,
+                  "maximum": 86400,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Seconds of counter history to summarise on each port. Omit for no counters. Pass the same window the overlay is using, or the card and the graph will disagree.",
+              "title": "Counters Window"
+            }
+          },
+          {
+            "description": "Include per-port throughput. The window is server-sized from the fabric's observed traffic cadence, matching the overlay.",
+            "in": "query",
+            "name": "with_traffic",
+            "required": false,
+            "schema": {
+              "default": false,
+              "description": "Include per-port throughput. The window is server-sized from the fabric's observed traffic cadence, matching the overlay.",
+              "title": "With Traffic",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NodeDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Node",
+        "tags": [
+          "fabric"
+        ]
+      }
+    },
+    "/api/v1/fabrics/{fabric}/snapshots": {
+      "get": {
+        "description": "The collection-run index, newest first.\n\nEvery run writes a row whether or not anything changed, so this is what\nmakes silence readable: a gap here is the collector being down, while a run\nof `changed = false` is a fabric that genuinely did not move. Those two must\nnever render the same way, and only this endpoint can tell them apart.",
+        "operationId": "snapshots_api_v1_fabrics__fabric__snapshots_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "fabric",
+            "required": true,
+            "schema": {
+              "title": "Fabric",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "since",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Since"
+            }
+          },
+          {
+            "in": "query",
+            "name": "until",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Until"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 500,
+              "maximum": 5000,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Snapshots"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Snapshots",
+        "tags": [
+          "fabric"
+        ]
+      }
+    },
+    "/api/v1/fabrics/{fabric}/topology": {
+      "get": {
+        "description": "The graph as of `at`, or now.",
+        "operationId": "topology_api_v1_fabrics__fabric__topology_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "fabric",
+            "required": true,
+            "schema": {
+              "title": "Fabric",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "at",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "At"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Topology"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Topology",
+        "tags": [
+          "fabric"
+        ]
+      }
+    }
+  }
+}

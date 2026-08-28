@@ -1,0 +1,36 @@
+# ibmon read API configuration EXAMPLE.
+#
+# Any key omitted here falls back to the built-in default noted above it.
+
+# libpq connection string for the monitor database.
+# default: "postgresql:///ibmonitor"
+dsn = "postgresql:///ibmonitor"
+
+# Interface to bind.
+# default: "127.0.0.1"
+host = "127.0.0.1"
+
+# HTTP listen port.
+# default: 8000
+port = 8000
+
+# Fabric served when a request does not name one.
+# default: "default"
+fabric = "default"
+
+# Browser origins allowed to call the API. The default covers a local Vite dev
+# server; a deployment serving the built frontend from the same origin needs
+# none of these.
+# default: ["http://localhost:5173", "http://127.0.0.1:5173"]
+# cors_origins = ["https://ibmon.example.internal"]
+
+# Connection pool bounds. Queries are short, so a small pool goes a long way.
+# default: 1 / 8
+# pool_min = 1
+# pool_max = 8
+
+# path to display-name overrides json, in the format ibfabric already
+# uses: {"nodeGuid": {"0x...": "name"}, "systemImageGuid": {"0x...": "name"}}.
+# Omit to serve the descriptions the SA reports.
+# default: none
+# id_to_name_path = "/etc/ibmon/id_to_name.json"

@@ -1,0 +1,20 @@
+# ibmon collector configuration EXAMPLE.
+
+# PostgreSQL libpq connection string.
+# default: "postgresql:///ibmonitor"
+dsn = "postgresql:///ibmonitor"
+
+# Logical fabric name. Resolved to a fabric_id, created on first sight.
+# default: "default"
+fabric = "default"
+
+# IB subnet prefix, stamped on the fabric row at first creation only.
+# Leave commented to store no prefix (the default).
+# subnet_prefix = "0xfe80000000000000"
+
+# Topology poll cadence in seconds (loop mode). default: 300
+interval_s = 300
+
+# Read the three records from a fixture directory instead of live saquery. Leave
+# commented for production (live saquery). default: unset
+# from_dir = "../test_data/data"

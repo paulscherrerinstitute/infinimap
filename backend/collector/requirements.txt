@@ -1,0 +1,2 @@
+# psycopg 3 is the standard PostgreSQL driver for Python 3
+psycopg[binary]>=3.1,<4

@@ -1,0 +1,10 @@
+{
+  "oui_to_pci_vendor": {
+    "713": 5555,
+    "1077053": 5555
+  },
+  "oui_names": {
+    "713": "Mellanox / NVIDIA",
+    "1077053": "NVIDIA"
+  }
+}
