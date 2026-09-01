@@ -12,9 +12,9 @@ from pathlib import Path
 # Where __main__ looks when no --config is given. A file here is optional: if it
 # is absent the built-in defaults below apply and CLI flags can still supply
 # everything (handy for --from-dir testing with no file on disk).
-DEFAULT_CONFIG_PATH = Path("/etc/ibmon/collector.toml")
+DEFAULT_CONFIG_PATH = Path("/etc/infinimap/collector.toml")
 
-_DEFAULT_DSN = "postgresql:///ibmonitor"
+_DEFAULT_DSN = "postgresql:///infinimap"
 _DEFAULT_FABRIC = "default"
 _DEFAULT_INTERVAL_S = 300.0
 # Traffic is a separate sweep on a separate thread; see daemon.traffic_loop.

@@ -16,7 +16,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from ibcore.health import Health
+from infinimap.ibcore.health import Health
 
 NodeKind = Literal["ca", "switch", "router"]
 Change = Literal["added", "removed", "modified", "unchanged"]

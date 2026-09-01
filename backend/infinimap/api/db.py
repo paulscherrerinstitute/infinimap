@@ -23,11 +23,11 @@ from typing import LiteralString, cast
 from psycopg.rows import dict_row
 from psycopg_pool import ConnectionPool
 
-from ibcore.guid import guid_str, unsigned
+from infinimap.ibcore.guid import guid_str, unsigned
 
 from .config import Config
 
-log = logging.getLogger("ibmon.api")
+log = logging.getLogger("infinimap.api")
 
 
 class FabricNotFound(LookupError):

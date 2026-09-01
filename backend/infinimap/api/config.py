@@ -10,12 +10,12 @@ from dataclasses import dataclass
 from pathlib import Path
 import tomllib
 
-DEFAULT_CONFIG_PATH = Path("/etc/ibmon/api.toml")
+DEFAULT_CONFIG_PATH = Path("/etc/infinimap/api.toml")
 
 # Built in defaults
 @dataclass(frozen=True)
 class Config:
-    dsn: str = "postgresql:///ibmonitor"
+    dsn: str = "postgresql:///infinimap"
     host: str = "127.0.0.1"
     port: int = 8000                     # HTTP listen port, not an IB port
     default_fabric: str = "default"

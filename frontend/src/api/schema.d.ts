@@ -58,8 +58,7 @@ export interface paths {
          *
          *     A rate, not a delta: `at` names the instant to read *at*, and `window` only
          *     says how long an interval to average over. Ports below the idle floor are
-         *     omitted; ports that could not be measured are present and flagged, because
-         *     an unpolled port and an idle one must not render alike.
+         *     omitted; ports that could not be measured are present and flagged.
          */
         get: operations["traffic_api_v1_fabrics__fabric__counters_traffic_get"];
         put?: never;
@@ -227,10 +226,7 @@ export interface components {
          * CounterCoverage
          * @description How much of the fabric the window actually saw.
          *
-         *     `unsupported` is fabric-level and per counter, because a counter no port can
-         *     report is a property of the hardware rather than of any one port -- and
-         *     saying it once keeps it off every port row. It is what lets the UI grey
-         *     out a checkbox instead of showing a column of honest, useless zeros.
+         *     `unsupported` is fabric-level and per counter.
          */
         CounterCoverage: {
             /** Ports Expected */
@@ -317,9 +313,6 @@ export interface components {
         /**
          * Diff
          * @description The union of both endpoints' topologies, annotated.
-         *
-         *     Union rather than a change-list: a removed link is absent from the `to`
-         *     topology, so a client given only the changes could not draw the ghost.
          *
          *     `churn` counts events regardless of net change, because a link that flapped
          *     repeatedly and came back is byte-identical in a net diff and is probably the
@@ -652,19 +645,14 @@ export interface components {
          * PortErrorDelta
          * @description One port's accumulation over the window.
          *
-         *     Sparse in two directions: `d` carries only counters that moved, and a port
-         *     with nothing to say is absent entirely. That deliberately inverts the
-         *     storage decision -- the schema stores dense because columnar compression
-         *     rewards it, while the wire is sparse because the client already holds the
-         *     port universe and a healthy fabric is nearly all zeros.
+         *     Sparse in two directions: `d` carries only counters that moved, so a port
+         *     with nothing to say is absent entirely.
          *
          *     Absence therefore means zero, which is only safe because every case where it
          *     would instead mean *unknown* raises a flag below.
          *
          *     Every field below `port` keeps a default and the route serialises with
-         *     `exclude_defaults`, so a clean row is `{"node", "port", "d"}`. The
-         *     envelope's fields stay required so the same switch cannot elide a zero that
-         *     means something.
+         *     `exclude_defaults`, so a clean row is `{"node", "port", "d"}`.
          */
         PortErrorDelta: {
             /** D */
@@ -724,12 +712,11 @@ export interface components {
          * @description One port's rate over the window.
          *
          *     Gbps on the wire rather than raw octets: the conversion needs `xmit_data`'s
-         *     x4 scaling, the span, and the knowledge that these are wire bytes -- three
-         *     things the server has and a client would have to be told.
+         *     x4 scaling, the span, and the knowledge that these are wire bytes.
          *
          *     Sparse on a floor rather than on a flag, because traffic is genuinely dense
          *     where errors are not. An omitted port is below `IDLE_FLOOR_GBPS` and reads
-         *     as idle either way, which is most of the payload at a 5 s cadence.
+         *     as idle either way.
          */
         PortTraffic: {
             /**

@@ -40,7 +40,7 @@ from .store.counters import CounterWriteResult, CounterWriter
 from .store.identity import Identity
 from .store.writer import WriteResult, Writer
 
-log = logging.getLogger("ibmon.collector")
+log = logging.getLogger("infinimap.collector")
 
 
 def _now() -> str:

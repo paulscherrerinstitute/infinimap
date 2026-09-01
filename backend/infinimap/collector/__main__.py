@@ -1,7 +1,7 @@
 """CLI entry point.
 
-    python -m collector --once --from-dir ../test_data/test_data/data
-    python -m collector --loop --config /etc/ibmon/collector.toml
+    infinimap-collector --once --from-dir ../test_data/test_data/data
+    infinimap-collector --loop --config /etc/infinimap/collector.toml
 
 Flags override the config file (see config.from_file); the file overrides the
 built-in defaults. Fixture mode (--from-dir) still needs a database to write to;
@@ -20,14 +20,14 @@ from .daemon import run
 
 
 def _parse_args(argv: list[str]) -> argparse.Namespace:
-    ap = argparse.ArgumentParser(prog="collector")
+    ap = argparse.ArgumentParser(prog="infinimap-collector")
     mode = ap.add_mutually_exclusive_group()
     mode.add_argument("--once", action="store_true",
                       help="run a single cycle and exit (systemd-timer friendly)")
     mode.add_argument("--loop", action="store_true",
                       help="run continuously at the configured interval (default)")
     ap.add_argument("--config", metavar="FILE",
-                    help="TOML config file (default: /etc/ibmon/collector.toml if present)")
+                    help="TOML config file (default: /etc/infinimap/collector.toml if present)")
     ap.add_argument("--from-dir", metavar="DIR",
                     help="read record dumps from a fixture directory instead of saquery")
     ap.add_argument("--dsn", help="PostgreSQL connection string")
@@ -74,6 +74,11 @@ def main(argv: list[str]) -> int:
         format="%(asctime)s %(levelname)s %(name)s %(message)s",
     )
     return run(_config_from(args), once=args.once and not args.loop)
+
+
+def console() -> int:
+    """Console-script entry point. Takes no arguments; argparse reads sys.argv."""
+    return main(sys.argv[1:])
 
 
 if __name__ == "__main__":

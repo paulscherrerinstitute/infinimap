@@ -1,10 +1,10 @@
-# ibmon read API configuration EXAMPLE.
+# infinimap read API configuration EXAMPLE.
 #
 # Any key omitted here falls back to the built-in default noted above it.
 
 # libpq connection string for the monitor database.
-# default: "postgresql:///ibmonitor"
-dsn = "postgresql:///ibmonitor"
+# default: "postgresql:///infinimap"
+dsn = "postgresql:///infinimap"
 
 # Interface to bind.
 # default: "127.0.0.1"
@@ -22,7 +22,7 @@ fabric = "default"
 # server; a deployment serving the built frontend from the same origin needs
 # none of these.
 # default: ["http://localhost:5173", "http://127.0.0.1:5173"]
-# cors_origins = ["https://ibmon.example.internal"]
+# cors_origins = ["https://infinimap.example.internal"]
 
 # Connection pool bounds. Queries are short, so a small pool goes a long way.
 # default: 1 / 8
@@ -33,4 +33,4 @@ fabric = "default"
 # uses: {"nodeGuid": {"0x...": "name"}, "systemImageGuid": {"0x...": "name"}}.
 # Omit to serve the descriptions the SA reports.
 # default: none
-# id_to_name_path = "/etc/ibmon/id_to_name.json"
+# id_to_name_path = "/etc/infinimap/id_to_name.json"

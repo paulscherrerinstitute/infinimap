@@ -15,10 +15,10 @@ from __future__ import annotations
 from collections import defaultdict
 from datetime import datetime
 
-from ibcore import decode
-from ibcore.guid import guid_str
-from ibcore.health import Health, PortView, link_health, node_health
-from ibcore.ids import edge_id
+from infinimap.ibcore import decode
+from infinimap.ibcore.guid import guid_str
+from infinimap.ibcore.health import Health, PortView, link_health, node_health
+from infinimap.ibcore.ids import edge_id
 
 from ..db import Database, as_of, sql
 from ..models import Counts, LinkElement, NodeElement, Rate, SystemGroup

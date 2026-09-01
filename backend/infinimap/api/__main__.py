@@ -1,8 +1,10 @@
 """Run the read API.
 
-    python -m api
-    python -m api --config ./api.toml
-    python -m api --openapi ../openapi.json      # write the schema and exit
+    infinimap-api
+    infinimap-api --config ./api.toml
+    infinimap-api --openapi openapi.json    # write the schema and exit
+
+Also runnable as `python -m infinimap.api`.
 
 Every setting comes from the config file, falling back to a built-in default
 when the file omits it. With no --config the default path is loaded if it
@@ -25,7 +27,7 @@ from .config import DEFAULT_CONFIG_PATH, Config, defaults, from_file
 
 
 def _parse_args(argv: list[str]) -> argparse.Namespace:
-    ap = argparse.ArgumentParser(prog="api")
+    ap = argparse.ArgumentParser(prog="infinimap-api")
     ap.add_argument("--config", metavar="FILE", help="path to api.toml")
     ap.add_argument("--openapi", metavar="FILE", nargs="?", const="-",
                     help="write the OpenAPI schema and exit ('-' for stdout)")
@@ -71,6 +73,11 @@ def main(argv: list[str]) -> int:
 
     uvicorn.run(create_app(cfg), host=cfg.host, port=cfg.port)
     return 0
+
+
+def console() -> int:
+    """Console-script entry point. Takes no arguments; argparse reads sys.argv."""
+    return main(sys.argv[1:])
 
 
 if __name__ == "__main__":

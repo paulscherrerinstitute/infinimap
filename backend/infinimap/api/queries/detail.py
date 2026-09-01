@@ -4,10 +4,10 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 
-from ibcore import decode
-from ibcore.guid import guid_str, parse_guid
-from ibcore.health import Health, PortView, link_health, node_health, reasons
-from ibcore.ids import edge_id, parse_edge_id
+from infinimap.ibcore import decode
+from infinimap.ibcore.guid import guid_str, parse_guid
+from infinimap.ibcore.health import Health, PortView, link_health, node_health, reasons
+from infinimap.ibcore.ids import edge_id, parse_edge_id
 
 from ..db import Database, as_of, sql
 from . import counters as counters_q
@@ -175,7 +175,7 @@ def _device(vendor_id: int | None, device_id: int | None):
     if vendor_id is None or device_id is None:
         return None, None
     try:
-        from ibcore.vendor_device_parse import resolve as resolve_device
+        from infinimap.ibcore.vendor_device_parse import resolve as resolve_device
         info = resolve_device(vendor_id, device_id)
     except Exception:  # a missing pci.ids must not fail a detail request
         return None, None

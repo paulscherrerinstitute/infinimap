@@ -2,7 +2,7 @@
   "components": {
     "schemas": {
       "CounterCoverage": {
-        "description": "How much of the fabric the window actually saw.\n\n`unsupported` is fabric-level and per counter, because a counter no port can\nreport is a property of the hardware rather than of any one port -- and\nsaying it once keeps it off every port row. It is what lets the UI grey\nout a checkbox instead of showing a column of honest, useless zeros.",
+        "description": "How much of the fabric the window actually saw.\n\n`unsupported` is fabric-level and per counter.",
         "properties": {
           "ports_expected": {
             "title": "Ports Expected",
@@ -177,7 +177,7 @@
         "type": "object"
       },
       "Diff": {
-        "description": "The union of both endpoints' topologies, annotated.\n\nUnion rather than a change-list: a removed link is absent from the `to`\ntopology, so a client given only the changes could not draw the ghost.\n\n`churn` counts events regardless of net change, because a link that flapped\nrepeatedly and came back is byte-identical in a net diff and is probably the\nmost interesting thing in the range.\n\n`system_groups` is the union of both endpoints', so a chassis that lost its\nlast node is still there for the removed children to sit inside.",
+        "description": "The union of both endpoints' topologies, annotated.\n\n`churn` counts events regardless of net change, because a link that flapped\nrepeatedly and came back is byte-identical in a net diff and is probably the\nmost interesting thing in the range.\n\n`system_groups` is the union of both endpoints', so a chassis that lost its\nlast node is still there for the removed children to sit inside.",
         "properties": {
           "fabric": {
             "title": "Fabric",
@@ -1298,7 +1298,7 @@
         "type": "object"
       },
       "PortErrorDelta": {
-        "description": "One port's accumulation over the window.\n\nSparse in two directions: `d` carries only counters that moved, and a port\nwith nothing to say is absent entirely. That deliberately inverts the\nstorage decision -- the schema stores dense because columnar compression\nrewards it, while the wire is sparse because the client already holds the\nport universe and a healthy fabric is nearly all zeros.\n\nAbsence therefore means zero, which is only safe because every case where it\nwould instead mean *unknown* raises a flag below.\n\nEvery field below `port` keeps a default and the route serialises with\n`exclude_defaults`, so a clean row is `{\"node\", \"port\", \"d\"}`. The\nenvelope's fields stay required so the same switch cannot elide a zero that\nmeans something.",
+        "description": "One port's accumulation over the window.\n\nSparse in two directions: `d` carries only counters that moved, so a port\nwith nothing to say is absent entirely.\n\nAbsence therefore means zero, which is only safe because every case where it\nwould instead mean *unknown* raises a flag below.\n\nEvery field below `port` keeps a default and the route serialises with\n`exclude_defaults`, so a clean row is `{\"node\", \"port\", \"d\"}`.",
         "properties": {
           "d": {
             "additionalProperties": {
@@ -1420,7 +1420,7 @@
         "type": "object"
       },
       "PortTraffic": {
-        "description": "One port's rate over the window.\n\nGbps on the wire rather than raw octets: the conversion needs `xmit_data`'s\nx4 scaling, the span, and the knowledge that these are wire bytes -- three\nthings the server has and a client would have to be told.\n\nSparse on a floor rather than on a flag, because traffic is genuinely dense\nwhere errors are not. An omitted port is below `IDLE_FLOOR_GBPS` and reads\nas idle either way, which is most of the payload at a 5 s cadence.",
+        "description": "One port's rate over the window.\n\nGbps on the wire rather than raw octets: the conversion needs `xmit_data`'s\nx4 scaling, the span, and the knowledge that these are wire bytes.\n\nSparse on a floor rather than on a flag, because traffic is genuinely dense\nwhere errors are not. An omitted port is below `IDLE_FLOOR_GBPS` and reads\nas idle either way.",
         "properties": {
           "no_data": {
             "default": false,
@@ -1842,7 +1842,7 @@
   },
   "info": {
     "summary": "Read-only view of the InfiniBand fabric, at any point in time.",
-    "title": "ibmon read API",
+    "title": "infinimap read API",
     "version": "1.0.0"
   },
   "openapi": "3.1.0",
@@ -1965,7 +1965,7 @@
     },
     "/api/v1/fabrics/{fabric}/counters/traffic": {
       "get": {
-        "description": "Per-port transmit and receive rates over a trailing window, sparse.\n\nA rate, not a delta: `at` names the instant to read *at*, and `window` only\nsays how long an interval to average over. Ports below the idle floor are\nomitted; ports that could not be measured are present and flagged, because\nan unpolled port and an idle one must not render alike.",
+        "description": "Per-port transmit and receive rates over a trailing window, sparse.\n\nA rate, not a delta: `at` names the instant to read *at*, and `window` only\nsays how long an interval to average over. Ports below the idle floor are\nomitted; ports that could not be measured are present and flagged.",
         "operationId": "traffic_api_v1_fabrics__fabric__counters_traffic_get",
         "parameters": [
           {

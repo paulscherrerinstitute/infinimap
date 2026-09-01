@@ -24,7 +24,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 from typing import Any, NamedTuple, get_args
 
-from ibcore.guid import guid_str
+from infinimap.ibcore.guid import guid_str
 
 from ..db import Database, sql
 from ..models import (

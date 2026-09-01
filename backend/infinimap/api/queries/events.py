@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from ibcore.guid import guid_str
-from ibcore.ids import edge_id
+from infinimap.ibcore.guid import guid_str
+from infinimap.ibcore.ids import edge_id
 
 from ..db import Database
 from ..models import Event

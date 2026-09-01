@@ -13,7 +13,7 @@ from .config import Config
 from .db import Database
 from .routes import counters, detail, diff, events, fabrics, topology
 
-log = logging.getLogger("ibmon.api")
+log = logging.getLogger("infinimap.api")
 
 API_PREFIX = "/api/v1"
 
@@ -31,7 +31,7 @@ def create_app(cfg: Config) -> FastAPI:
             db.close()
 
     app = FastAPI(
-        title="ibmon read API",
+        title="infinimap read API",
         version="1.0.0",
         summary="Read-only view of the InfiniBand fabric, at any point in time.",
         lifespan=lifespan,

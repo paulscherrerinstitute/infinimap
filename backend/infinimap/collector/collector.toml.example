@@ -1,8 +1,8 @@
-# ibmon collector configuration EXAMPLE.
+# infinimap collector configuration EXAMPLE.
 
 # PostgreSQL libpq connection string.
-# default: "postgresql:///ibmonitor"
-dsn = "postgresql:///ibmonitor"
+# default: "postgresql:///infinimap"
+dsn = "postgresql:///infinimap"
 
 # Logical fabric name. Resolved to a fabric_id, created on first sight.
 # default: "default"

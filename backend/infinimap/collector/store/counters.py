@@ -16,7 +16,7 @@ from psycopg import sql
 from .identity import Identity, scalar as _scalar
 from ..counters import CounterObservation
 
-log = logging.getLogger("ibmon.collector.counters")
+log = logging.getLogger("infinimap.collector.counters")
 
 
 @dataclass
