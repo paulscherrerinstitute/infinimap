@@ -36,6 +36,9 @@ dist/
 # Node / frontend build
 frontend/node_modules/
 frontend/dist/
+# The built UI copied into the package before a wheel is built. A build
+# artefact, never a source file.
+backend/infinimap/api/web/
 frontend/tsconfig.tsbuildinfo
 
 # Editor / OS
