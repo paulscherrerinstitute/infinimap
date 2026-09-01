@@ -29,6 +29,8 @@ from datetime import datetime, timezone
 
 import psycopg
 
+from .. import __version__
+from ..db import startup
 from .acquire import ibqueryerrors, saquery
 from .config import Config
 from .counters import CounterObservation
@@ -229,13 +231,18 @@ def run(cfg: Config, *, once: bool) -> int:
     signal.signal(signal.SIGINT, _graceful)
 
     with psycopg.connect(cfg.dsn, autocommit=True, options="-c timezone=UTC") as conn:
+        startup.check_schema(conn, component="collector")
+        startup.check_clock(conn, component="collector",
+                            max_skew_s=cfg.max_clock_skew_s)
+
         identity = Identity(conn, cfg.fabric_name, cfg.subnet_prefix)
         writer = Writer(conn, identity)
         errors = CounterWriter(conn, identity)
         writer.open()
         errors.open()
-        log.info("collector started: fabric=%r source=%s",
-                 cfg.fabric_name, cfg.from_dir or "live saquery + ibqueryerrors")
+        log.info("collector started: version=%s fabric=%r source=%s",
+                 __version__, cfg.fabric_name,
+                 cfg.from_dir or "live saquery + ibqueryerrors")
 
         if once:
             # One of each, in cycle order: the traffic sweep is independent, but

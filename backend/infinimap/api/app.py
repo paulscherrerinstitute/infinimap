@@ -9,6 +9,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from .. import __version__
+from ..db import startup
 from .config import Config
 from .db import Database
 from .routes import counters, detail, diff, events, fabrics, topology
@@ -24,6 +26,12 @@ def create_app(cfg: Config) -> FastAPI:
     async def lifespan(app: FastAPI):
         db = Database(cfg)
         db.open()
+
+        with db.pool.connection() as conn:
+            startup.check_schema(conn, component="api")
+            # Warn only.
+            startup.check_clock(conn, component="api")
+
         app.state.db = db
         log.info("api ready: dsn=%s fabric=%r", _safe_dsn(cfg.dsn), cfg.default_fabric)
         try:
@@ -51,13 +59,17 @@ def create_app(cfg: Config) -> FastAPI:
     for module in (fabrics, topology, detail, events, diff, counters):
         app.include_router(module.router, prefix=API_PREFIX, tags=["fabric"])
 
-    # Check if the database is reachable and the pool is working
     @app.get("/healthz", include_in_schema=False)
     def healthz():
         db: Database = app.state.db
         with db.pool.connection() as conn:
-            conn.execute("SELECT 1")
-        return {"status": "ok"}
+            found = startup.schema_version(conn)
+        return {
+            "status": "ok",
+            "version": __version__,
+            "schema_version": found,
+            "expects_schema": startup.EXPECTED_VERSION,
+        }
 
     @app.exception_handler(ValueError)
     async def _bad_value(_request, exc: ValueError):

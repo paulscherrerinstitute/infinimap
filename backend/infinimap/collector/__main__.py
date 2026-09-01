@@ -19,6 +19,7 @@ from dataclasses import replace
 
 from .config import (Config, DEFAULT_CONFIG_PATH, defaults, from_env,
                      from_file)
+from ..db import startup
 from .daemon import run
 
 
@@ -82,7 +83,11 @@ def main(argv: list[str]) -> int:
         level=logging.DEBUG if args.verbose else logging.INFO,
         format="%(asctime)s %(levelname)s %(name)s %(message)s",
     )
-    return run(_config_from(args), once=args.once and not args.loop)
+    try:
+        return run(_config_from(args), once=args.once and not args.loop)
+    except (startup.SchemaMismatch, startup.ClockSkew) as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
 
 
 def console() -> int:

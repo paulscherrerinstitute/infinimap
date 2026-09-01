@@ -25,6 +25,11 @@ interval_s = 300
 # default: 30
 # traffic_interval_s = 30
 
+# Refuse to start if this host's clock differs from the database's by more than
+# this many seconds. 0 disables the check.
+# default: 5
+# max_clock_skew_s = 5
+
 # Every setting above can also come from the environment, which overrides this
 # file: INFINIMAP_DSN, INFINIMAP_FABRIC, INFINIMAP_INTERVAL,
-# INFINIMAP_TRAFFIC_INTERVAL.
+# INFINIMAP_TRAFFIC_INTERVAL, INFINIMAP_MAX_CLOCK_SKEW.

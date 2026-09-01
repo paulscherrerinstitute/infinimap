@@ -1,0 +1,272 @@
+name: CI
+
+# Four things this has to catch, each of which would go wrong silently:
+#
+#   * openapi.json drifting from the Pydantic models.
+#   * schema.d.ts drifting from openapi.json.
+#   * the migrations failing against a real TimescaleDB.
+#   * a wheel shipping without the UI. pip cannot run npm, so the bundle only
+#     exists if the build put it there.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: backend (py${{ matrix.python }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # 3.11 is the floor claimed by requires-python: tomllib is stdlib there.
+        python: ["3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+
+      - name: Install
+        # `server` too: the openapi check runs the real app, which needs FastAPI.
+        run: pip install -e ".[server,dev]"
+
+      - name: Tests
+        run: python -m pytest tests/ -q
+
+      - name: openapi.json matches the code
+        # Needs no database, which is what makes this cheap enough to always run.
+        run: |
+          infinimap-api --openapi - > /tmp/openapi.json
+          if ! diff -u openapi.json /tmp/openapi.json; then
+            echo "::error::openapi.json is stale. Run: infinimap-api --openapi openapi.json"
+            echo "         then: cd frontend && npm run gen:api  -- and commit all three."
+            exit 1
+          fi
+
+  frontend:
+    name: frontend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install
+        working-directory: frontend
+        run: npm ci
+
+      - name: Typecheck
+        working-directory: frontend
+        run: npm run typecheck
+
+      - name: schema.d.ts matches openapi.json
+        run: |
+          cd frontend && npm run gen:api
+          if ! git diff --exit-code -- src/api/schema.d.ts; then
+            echo "::error::schema.d.ts is stale. Run: cd frontend && npm run gen:api"
+            exit 1
+          fi
+
+      - name: Build
+        working-directory: frontend
+        run: npm run build
+
+  database:
+    name: migrations against TimescaleDB
+    runs-on: ubuntu-latest
+    services:
+      timescaledb:
+        # The image already has timescaledb in shared_preload_libraries, so this
+        # starts where a tuned server does: extension available, not yet created.
+        image: timescale/timescaledb:latest-pg16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      SU_DSN: postgresql://postgres:postgres@localhost:5432/postgres
+      DB_DSN: postgresql://postgres:postgres@localhost:5432/infinimap
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        run: pip install -e .
+
+      - name: check reports an uninitialised database
+        run: |
+          infinimap-db check --dsn "$SU_DSN" && rc=0 || rc=$?
+          test "$rc" = "1" || { echo "::error::expected exit 1, got $rc"; exit 1; }
+
+      - name: init
+        run: infinimap-db init --dsn "$SU_DSN" --api-password ci --collector-password ci
+
+      - name: check is clean afterwards
+        run: infinimap-db check --dsn "$DB_DSN"
+
+      - name: the TimescaleDB objects really exist
+        # 004's continuous aggregates cannot be created inside a transaction.
+        # If the statement splitter ever fails, this is where it shows.
+        run: |
+          python - <<'PY'
+          import os, sys, psycopg
+
+          EXPECTED = [
+              ("hypertables", 2,
+               "SELECT count(*) FROM timescaledb_information.hypertables"),
+              ("continuous aggregates", 3,
+               "SELECT count(*) FROM timescaledb_information.continuous_aggregates"),
+              ("promote_wide_caps", 1,
+               "SELECT count(*) FROM pg_proc WHERE proname = 'promote_wide_caps'"),
+              ("schema_version rows", 5,
+               "SELECT count(*) FROM schema_version"),
+          ]
+
+          ok = True
+          with psycopg.connect(os.environ["DB_DSN"]) as conn:
+              for label, want, query in EXPECTED:
+                  got = conn.execute(query).fetchone()[0]
+                  print(f"{'ok ' if got == want else 'FAIL'}  {label}: {got} (want {want})")
+                  ok &= got == want
+          sys.exit(0 if ok else 1)
+          PY
+
+      - name: init and migrate are idempotent
+        run: |
+          infinimap-db init --dsn "$SU_DSN"
+          infinimap-db migrate --dsn "$DB_DSN"
+
+      - name: the API starts against this database
+        # Not redundant with the unit tests. The startup handshake runs on a
+        # pooled connection configured with `dict_row`, and a stubbed test does
+        # not model that: a row-factory assumption in the shared db helpers got
+        # through the unit tests and only failed here, on a real connection.
+        run: |
+          pip install -e ".[server]"
+          INFINIMAP_DSN="$DB_DSN" infinimap-api > /tmp/api.log 2>&1 &
+          for _ in $(seq 1 30); do
+            curl -sf -o /dev/null http://127.0.0.1:8000/healthz && break
+            sleep 1
+          done
+          if ! curl -sf -o /dev/null http://127.0.0.1:8000/healthz; then
+            echo "::error::the API did not come up"; cat /tmp/api.log; exit 1
+          fi
+          curl -sf http://127.0.0.1:8000/api/v1/fabrics
+          grep -q "api ready" /tmp/api.log || { cat /tmp/api.log; exit 1; }
+
+      - name: the roles have exactly the privileges they should
+        # Settled by hand once against a real TimescaleDB; kept here so a change
+        # to the grants cannot quietly widen them. Reading a continuous
+        # aggregate is the interesting one: plain GRANT SELECT turns out to be
+        # enough, with no _timescaledb_internal grants.
+        run: |
+          python - <<'PY'
+          import sys, psycopg
+
+          API = "postgresql://infinimap_api:ci@localhost:5432/infinimap"
+          COL = "postgresql://infinimap_collector:ci@localhost:5432/infinimap"
+
+          def allowed(dsn, sql):
+              """True if the statement runs. Rolled back either way."""
+              try:
+                  with psycopg.connect(dsn) as conn:
+                      conn.execute(sql)
+                      conn.rollback()
+                  return True
+              except psycopg.errors.InsufficientPrivilege:
+                  return False
+
+          # (label, dsn, sql, must_be_allowed)
+          CASES = [
+              ("api reads a table",               API, "SELECT 1 FROM fabric",       True),
+              ("api reads a continuous aggregate", API, "SELECT 1 FROM traffic_1m",  True),
+              ("api reads a hypertable",          API, "SELECT 1 FROM port_traffic", True),
+              ("api cannot insert",               API, "INSERT INTO fabric (name) VALUES ('x')", False),
+              ("collector inserts",               COL, "INSERT INTO fabric (name) VALUES ('x')", True),
+              # The collector only ever INSERTs and UPDATEs, so withholding
+              # DELETE means a broken collector cannot destroy history.
+              ("collector cannot delete",         COL, "DELETE FROM fabric",         False),
+          ]
+
+          ok = True
+          for label, dsn, sql, want in CASES:
+              got = allowed(dsn, sql)
+              print(f"{'ok ' if got == want else 'FAIL'}  {label}: allowed={got} (want {want})")
+              ok &= got == want
+          sys.exit(0 if ok else 1)
+          PY
+
+  wheel:
+    name: wheel with UI
+    needs: [backend, frontend, database]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build the frontend
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+
+      - name: Put the bundle inside the package
+        # This is the step pip cannot do for itself, and the only reason a
+        # released wheel has a UI while `pip install git+...` does not.
+        run: cp -r frontend/dist backend/infinimap/api/web
+
+      - name: Build
+        run: |
+          pip install build
+          python -m build --wheel
+
+      - name: The wheel carries the UI and the schema
+        run: |
+          python - <<'PY'
+          import glob, sys, zipfile
+          names = zipfile.ZipFile(glob.glob("dist/*.whl")[0]).namelist()
+          ui = [n for n in names if "/api/web/" in n]
+          sql = [n for n in names if n.endswith(".sql")]
+          print(f"UI files: {len(ui)}, migrations: {len(sql)}")
+          ok = True
+          if not any(n.endswith("api/web/index.html") for n in ui):
+              print("FAIL: no index.html in the wheel"); ok = False
+          if len(sql) != 5:
+              print(f"FAIL: expected 5 migrations, got {len(sql)}"); ok = False
+          if any(n.startswith(("api/", "collector/")) for n in names):
+              print("FAIL: top-level api/ or collector/ leaked into the wheel"); ok = False
+          sys.exit(0 if ok else 1)
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: infinimap-wheel
+          path: dist/*.whl

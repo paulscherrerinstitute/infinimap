@@ -19,6 +19,10 @@ DEFAULT_CONFIG_PATH = Path("/etc/infinimap/collector.toml")
 _DEFAULT_DSN = "postgresql:///infinimap"
 _DEFAULT_FABRIC = "default"
 _DEFAULT_INTERVAL_S = 300.0
+# Refuse to start past this much disagreement with the database clock. The
+# collector stamps the history from its own clock, so skew here is written 
+# down. 0 disables the check.
+_DEFAULT_MAX_CLOCK_SKEW_S = 5.0
 # Traffic is a separate sweep on a separate thread; see daemon.traffic_loop.
 # 5s is what the volume figures in sql/003_counters.sql assume.
 _DEFAULT_TRAFFIC_INTERVAL_S = 30.0
@@ -32,6 +36,8 @@ class Config:
     interval_s: float              # topology + error cadence (loop mode)
     traffic_interval_s: float = _DEFAULT_TRAFFIC_INTERVAL_S
     
+    max_clock_skew_s: float = _DEFAULT_MAX_CLOCK_SKEW_S  # 0 disables the check
+
     from_dir: str | None = None    # For testing, collect from a directory of saquery fixture files instead of live
 
     @property
@@ -66,6 +72,7 @@ def from_mapping(data: dict[str, object]) -> Config:
         subnet_prefix=_coerce_prefix(data.get("subnet_prefix")),
         interval_s=float(data.get("interval_s", _DEFAULT_INTERVAL_S)),  # type: ignore[arg-type]
         traffic_interval_s=float(data.get("traffic_interval_s", _DEFAULT_TRAFFIC_INTERVAL_S)),  # type: ignore[arg-type]
+        max_clock_skew_s=float(data.get("max_clock_skew_s", _DEFAULT_MAX_CLOCK_SKEW_S)),  # type: ignore[arg-type]
         from_dir=(str(data["from_dir"]) if data.get("from_dir") else None),
     )
 
@@ -76,6 +83,7 @@ ENV_VARS = {
     "INFINIMAP_FABRIC": "fabric_name",
     "INFINIMAP_INTERVAL": "interval_s",
     "INFINIMAP_TRAFFIC_INTERVAL": "traffic_interval_s",
+    "INFINIMAP_MAX_CLOCK_SKEW": "max_clock_skew_s",
 }
 
 

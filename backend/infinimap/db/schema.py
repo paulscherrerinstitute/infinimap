@@ -14,6 +14,8 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
+from psycopg.rows import tuple_row
+
 from .sqlsplit import split_statements
 
 MIGRATIONS_DIR = Path(__file__).parent / "migrations"
@@ -66,23 +68,37 @@ def discover(directory: Path | None = None) -> list[Migration]:
     return found
 
 
+def scalar(conn, sql: str, params=None):
+    """First column of the first row, or None."""
+    with conn.cursor(row_factory=tuple_row) as cur:
+        cur.execute(sql, params)
+        row = cur.fetchone()
+        return None if row is None else row[0]
+
+
+def rows(conn, sql: str, params=None) -> list[tuple]:
+    """Every row as a tuple, whatever the connection's row factory."""
+    with conn.cursor(row_factory=tuple_row) as cur:
+        cur.execute(sql, params)
+        return cur.fetchall()
+
+
 def ensure_version_table(conn) -> None:
     """Create `schema_version` if absent. Plain SQL; needs no TimescaleDB."""
     conn.execute(VERSION_TABLE)
 
 
 def has_version_table(conn) -> bool:
-    return bool(conn.execute("SELECT to_regclass('schema_version')").fetchone()[0])
+    return bool(scalar(conn, "SELECT to_regclass('schema_version')"))
 
 
 def applied(conn) -> dict[int, tuple[str, str]]:
     """version -> (name, checksum) for everything already run."""
     if not has_version_table(conn):
         return {}
-    rows = conn.execute(
-        "SELECT version, name, checksum FROM schema_version ORDER BY version"
-    ).fetchall()
-    return {r[0]: (r[1], r[2]) for r in rows}
+    found = rows(conn,
+                 "SELECT version, name, checksum FROM schema_version ORDER BY version")
+    return {r[0]: (r[1], r[2]) for r in found}
 
 
 def pending(conn, directory: Path | None = None) -> list[Migration]:

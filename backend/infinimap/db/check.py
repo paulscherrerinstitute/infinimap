@@ -14,6 +14,7 @@ from dataclasses import dataclass
 from enum import Enum
 
 from . import schema
+from .schema import rows, scalar
 
 #: Matches the default in api/config.py and collector/config.py.
 DEFAULT_DSN = "postgresql:///infinimap"
@@ -76,29 +77,29 @@ def _first_line(exc: Exception) -> str:
 
 
 def _server_version(conn) -> str:
-    v = conn.execute("SHOW server_version").fetchone()[0]
-    who = conn.execute("SELECT current_user, current_database()").fetchone()
+    v = scalar(conn, "SHOW server_version")
+    who = rows(conn, "SELECT current_user, current_database()")[0]
     return f"PostgreSQL {v}, connected as {who[0]} to {who[1]}"
 
 
 def _timescale_findings(conn) -> list[Finding]:
     """Distinguish the four states TimescaleDB can be in."""
-    available = conn.execute(
-        "SELECT default_version FROM pg_available_extensions WHERE name = 'timescaledb'"
-    ).fetchone()
+    available = rows(conn,
+        "SELECT default_version FROM pg_available_extensions WHERE name = 'timescaledb'")
+    available = available[0] if available else None
     if not available:
         return [Finding(Status.FAIL, "timescaledb", "not installed on this server",
                         _INSTALL_HINT)]
 
-    preloaded = conn.execute("SHOW shared_preload_libraries").fetchone()[0]
+    preloaded = scalar(conn, "SHOW shared_preload_libraries")
     if "timescaledb" not in preloaded:
         return [Finding(Status.FAIL, "timescaledb",
                         f"installed ({available[0]}) but not preloaded",
                         "sudo timescaledb-tune && sudo systemctl restart postgresql")]
 
-    created = conn.execute(
-        "SELECT extversion FROM pg_extension WHERE extname = 'timescaledb'"
-    ).fetchone()
+    created = rows(conn,
+        "SELECT extversion FROM pg_extension WHERE extname = 'timescaledb'")
+    created = created[0] if created else None
     if not created:
         return [Finding(Status.FAIL, "timescaledb",
                         f"available ({available[0]}) but not created in this database",
