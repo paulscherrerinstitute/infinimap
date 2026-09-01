@@ -18,3 +18,13 @@ interval_s = 300
 # Read the three records from a fixture directory instead of live saquery. Leave
 # commented for production (live saquery). default: unset
 # from_dir = "../test_data/data"
+
+# Traffic sweep cadence in seconds. A separate, cheaper poll than the topology
+# cycle above - ibqueryerrors --counters reports every port unconditionally, so
+# it needs no port universe and can run far more often.
+# default: 30
+# traffic_interval_s = 30
+
+# Every setting above can also come from the environment, which overrides this
+# file: INFINIMAP_DSN, INFINIMAP_FABRIC, INFINIMAP_INTERVAL,
+# INFINIMAP_TRAFFIC_INTERVAL.

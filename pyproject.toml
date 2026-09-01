@@ -2,11 +2,7 @@
 #
 # The distribution is the `infinimap` package under backend/: the collector, the
 # read API, and the ibcore primitives they share. The frontend is built by npm
-# and ships as static files the API serves;
-#
-# This file is the single source of truth for dependencies. There are no
-# requirements.txt files any more -- two lists drift, and this project has
-# already been bitten once by a generated artefact drifting from its source.
+# and ships as static files the API serves.
 
 [build-system]
 requires = ["setuptools>=61"]
@@ -18,21 +14,27 @@ dynamic = ["version"]          # read from infinimap.__version__, so it is state
 description = "A live, time-aware map of an InfiniBand fabric"
 requires-python = ">=3.11"     # tomllib is stdlib from 3.11; dataclass slots from 3.10
 
-# Installing infinimap gives you *both* commands, working. Splitting the API's
-# deps into an extra would save the collector-only operator ~3 packages at the
-# cost of `infinimap-api` failing on `import fastapi` for anyone who guessed
-# wrong. If that trade ever stops being worth it, `collector` is the subset that
-# needs only psycopg.
+# The base install is what both halves need: a database driver. That is enough
+# to run `infinimap-collector` and `infinimap-db` on a fabric node.
 dependencies = [
     "psycopg[binary]>=3.1,<4",
+]
+
+[project.optional-dependencies]
+# Deliberately empty: the collector needs nothing beyond the base. It is named
+# so the install line says what the machine is for, and so adding a dependency
+# later does not change the documented command.
+collector = []
+
+# The read API and the UI it serves.
+server = [
     "psycopg-pool>=3.2,<4",
     "fastapi>=0.110,<1",
     "uvicorn[standard]>=0.27,<1",
 ]
 
-[project.optional-dependencies]
-# httpx drives the app through TestClient rather than over a socket. Nothing
-# imports it today -- it is here for the test suite, not for the runtime.
+# httpx drives the app through TestClient rather than over a socket. It is here
+# for the test suite, not for the runtime.
 dev = ["httpx>=0.27,<1", "pytest>=8,<9"]
 
 [project.scripts]
@@ -53,7 +55,8 @@ include = ["infinimap*"]       # excludes backend/ibfabric, the pre-database pro
 [tool.setuptools.package-data]
 # Loaded via Path(__file__).parent, so it must sit beside the module.
 "infinimap.ibcore" = ["*.json"]
-"infinimap.api" = ["*.example"]
+# web/** is the built frontend, placed here by CI before the wheel is built.
+"infinimap.api" = ["*.example", "web/**/*"]
 "infinimap.collector" = ["*.example"]
 # The schema ships with the package: an operator installing a wheel has no repo.
 "infinimap.db" = ["migrations/*.sql"]

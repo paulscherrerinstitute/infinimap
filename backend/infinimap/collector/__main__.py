@@ -2,6 +2,7 @@
 
     infinimap-collector --once --from-dir ../test_data/test_data/data
     infinimap-collector --loop --config /etc/infinimap/collector.toml
+    INFINIMAP_DSN=postgresql://... infinimap-collector --loop
 
 Flags override the config file (see config.from_file); the file overrides the
 built-in defaults. Fixture mode (--from-dir) still needs a database to write to;
@@ -14,8 +15,10 @@ import argparse
 import logging
 import sys
 import time
+from dataclasses import replace
 
-from .config import Config, DEFAULT_CONFIG_PATH, defaults, from_file
+from .config import (Config, DEFAULT_CONFIG_PATH, defaults, from_env,
+                     from_file)
 from .daemon import run
 
 
@@ -54,15 +57,21 @@ def _base_config(config_path: str | None) -> Config:
 
 
 def _config_from(args: argparse.Namespace) -> Config:
-    base = _base_config(args.config)
-    prefix = (int(args.subnet_prefix, 0) if args.subnet_prefix else base.subnet_prefix)
-    return Config(
-        dsn=args.dsn or base.dsn,
-        fabric_name=args.fabric or base.fabric_name,
-        subnet_prefix=prefix,
-        interval_s=args.interval if args.interval is not None else base.interval_s,
-        from_dir=args.from_dir or base.from_dir,
-    )
+    """File, then environment, then flags - each layer overriding the last."""
+    base = from_env(_base_config(args.config))
+
+    overrides: dict[str, object] = {}
+    if args.dsn:
+        overrides["dsn"] = args.dsn
+    if args.fabric:
+        overrides["fabric_name"] = args.fabric
+    if args.subnet_prefix:
+        overrides["subnet_prefix"] = int(args.subnet_prefix, 0)
+    if args.interval is not None:
+        overrides["interval_s"] = args.interval
+    if args.from_dir:
+        overrides["from_dir"] = args.from_dir
+    return replace(base, **overrides) if overrides else base
 
 
 def main(argv: list[str]) -> int:

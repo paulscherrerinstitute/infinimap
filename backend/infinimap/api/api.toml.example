@@ -34,3 +34,14 @@ fabric = "default"
 # Omit to serve the descriptions the SA reports.
 # default: none
 # id_to_name_path = "/etc/infinimap/id_to_name.json"
+
+# Built frontend to serve at `/`. Omit to look for one automatically: bundled
+# inside the package, then ../frontend/dist in a source checkout. With a bundle 
+# present the API serves the UI and the JSON on one origin, and cors_origins 
+# above becomes unnecessary.
+# default: none
+# web_root = "/usr/share/infinimap/web"
+
+# Every setting above can also come from the environment, which overrides this
+# file: INFINIMAP_DSN, INFINIMAP_FABRIC, INFINIMAP_HOST, INFINIMAP_PORT,
+# INFINIMAP_WEB_ROOT.

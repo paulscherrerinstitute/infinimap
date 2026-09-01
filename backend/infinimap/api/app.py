@@ -12,6 +12,7 @@ from fastapi.responses import JSONResponse
 from .config import Config
 from .db import Database
 from .routes import counters, detail, diff, events, fabrics, topology
+from .web import mount_web
 
 log = logging.getLogger("infinimap.api")
 
@@ -64,6 +65,10 @@ def create_app(cfg: Config) -> FastAPI:
         client errors, and surfacing them as 500 would blame the server for a
         typo in a URL."""
         return JSONResponse(status_code=422, content={"detail": str(exc)})
+
+    # Last: a mount at "/" matches every path, and Starlette takes the first
+    # match, so anything registered after this would never be reached.
+    mount_web(app, cfg)
 
     return app
 

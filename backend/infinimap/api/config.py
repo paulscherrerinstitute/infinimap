@@ -1,12 +1,14 @@
-"""TOML config loading for the API.
+"""Config loading for the API.
 
-Every setting comes from the config file, falling back to the built-in
-default when the file omits it.
+Settings resolve flag, then environment, then config file, then built-in
+default; __main__ applies the layers. This module supplies the file and
+environment halves.
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+import os
+from dataclasses import dataclass, replace
 from pathlib import Path
 import tomllib
 
@@ -29,6 +31,10 @@ class Config:
 
     # Display-name overrides
     id_to_name_path: Path | None = None
+
+    # Built frontend to serve at `/`. None means look for one: bundled in the
+    # package first, then frontend/dist in a source checkout. See api/web.py.
+    web_root: Path | None = None
 
 
 def _coerce_origins(raw: object) -> tuple[str, ...]:
@@ -62,7 +68,45 @@ def from_mapping(data: dict[str, object]) -> Config:
         pool_min=int(data.get("pool_min", d.pool_min)),  # type: ignore[arg-type]
         pool_max=int(data.get("pool_max", d.pool_max)),  # type: ignore[arg-type]
         id_to_name_path=_coerce_path(data.get("id_to_name_path")),
+        web_root=_coerce_path(data.get("web_root")),
     )
+
+
+#: Environment variable -> Config field.
+ENV_VARS = {
+    "INFINIMAP_DSN": "dsn",
+    "INFINIMAP_FABRIC": "default_fabric",
+    "INFINIMAP_HOST": "host",
+    "INFINIMAP_PORT": "port",
+    "INFINIMAP_WEB_ROOT": "web_root",
+}
+
+
+def from_env(base: Config | None = None, env: dict[str, str] | None = None) -> Config:
+    """`base` with any INFINIMAP_* variable applied over it.
+
+    Overrides the config file rather than the reverse: the file is baked into an
+    image or written by config management, while the environment is what the
+    operator sets for this particular run.
+    """
+    env = os.environ if env is None else env
+    base = base if base is not None else Config()
+
+    overrides: dict[str, object] = {}
+    for var, field in ENV_VARS.items():
+        raw = env.get(var)
+        if raw is None or raw == "":
+            continue
+        if field == "port":
+            try:
+                overrides[field] = int(raw)
+            except ValueError:
+                raise ValueError(f"{var} must be an integer, got {raw!r}") from None
+        elif field == "web_root":
+            overrides[field] = Path(raw)
+        else:
+            overrides[field] = raw
+    return replace(base, **overrides) if overrides else base
 
 
 def from_file(path: str | Path) -> Config:

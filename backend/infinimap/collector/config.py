@@ -1,12 +1,14 @@
 """Collector configuration: where to write, what to call the fabric, how often.
 
-Loaded from a TOML config file; CLI flags in __main__ always override.
+Settings resolve flag, then environment, then TOML file, then built-in default;
+__main__ applies the layers.
 """
 
 from __future__ import annotations
 
+import os
 import tomllib
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 # Where __main__ looks when no --config is given. A file here is optional: if it
@@ -66,6 +68,35 @@ def from_mapping(data: dict[str, object]) -> Config:
         traffic_interval_s=float(data.get("traffic_interval_s", _DEFAULT_TRAFFIC_INTERVAL_S)),  # type: ignore[arg-type]
         from_dir=(str(data["from_dir"]) if data.get("from_dir") else None),
     )
+
+
+#: Environment variable -> Config field.
+ENV_VARS = {
+    "INFINIMAP_DSN": "dsn",
+    "INFINIMAP_FABRIC": "fabric_name",
+    "INFINIMAP_INTERVAL": "interval_s",
+    "INFINIMAP_TRAFFIC_INTERVAL": "traffic_interval_s",
+}
+
+
+def from_env(base: Config | None = None, env: dict[str, str] | None = None) -> Config:
+    """`base` with any INFINIMAP_* variable applied over it."""
+    env = os.environ if env is None else env
+    base = base if base is not None else defaults()
+
+    overrides: dict[str, object] = {}
+    for var, field in ENV_VARS.items():
+        raw = env.get(var)
+        if raw is None or raw == "":
+            continue
+        if field.endswith("_s"):
+            try:
+                overrides[field] = float(raw)
+            except ValueError:
+                raise ValueError(f"{var} must be a number, got {raw!r}") from None
+        else:
+            overrides[field] = raw
+    return replace(base, **overrides) if overrides else base
 
 
 def from_file(path: str | Path) -> Config:
