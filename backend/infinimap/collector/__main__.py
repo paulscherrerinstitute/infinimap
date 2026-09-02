@@ -1,7 +1,7 @@
 """CLI entry point.
 
     infinimap-collector --once --from-dir ../test_data/test_data/data
-    infinimap-collector --loop --config /etc/infinimap/collector.toml
+    infinimap-collector --loop --config ./collector.toml
     INFINIMAP_DSN=postgresql://... infinimap-collector --loop
 
 Flags override the config file (see config.from_file); the file overrides the
@@ -27,7 +27,7 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
     ap = argparse.ArgumentParser(prog="infinimap-collector")
     mode = ap.add_mutually_exclusive_group()
     mode.add_argument("--once", action="store_true",
-                      help="run a single cycle and exit (systemd-timer friendly)")
+                      help="run a single cycle and exit")
     mode.add_argument("--loop", action="store_true",
                       help="run continuously at the configured interval (default)")
     ap.add_argument("--config", metavar="FILE",

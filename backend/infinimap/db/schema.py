@@ -16,12 +16,18 @@ from pathlib import Path
 
 from psycopg.rows import tuple_row
 
-from .sqlsplit import split_statements
+from .sqlsplit import split_statements, strip_comments
 
 MIGRATIONS_DIR = Path(__file__).parent / "migrations"
 
 #: `NNN_name.sql` -- the number orders them and is the recorded version.
 _FILENAME = re.compile(r"^(\d+)_([A-Za-z0-9_]+)\.sql$")
+
+#: `CREATE EXTENSION [IF NOT EXISTS] name`, quoted or not.
+_CREATE_EXTENSION = re.compile(
+    r"""CREATE\s+EXTENSION\s+(?:IF\s+NOT\s+EXISTS\s+)?["']?([A-Za-z_][\w]*)""",
+    re.IGNORECASE,
+)
 
 VERSION_TABLE = """
 CREATE TABLE IF NOT EXISTS schema_version (
@@ -66,6 +72,46 @@ def discover(directory: Path | None = None) -> list[Migration]:
             found.append(Migration(int(m.group(1)), m.group(2), path))
     found.sort(key=lambda mig: mig.version)
     return found
+
+
+def required_extensions(directory: Path | None = None) -> list[str]:
+    """Every extension the migrations create, in first-appearance order.
+
+    This is what lets `check` name a missing prerequisite before a migration 
+    trips over it: 002 needs btree_gist and intarray, which RHEL ships in a 
+    separate contrib package while Debian and the TimescaleDB image bundle them.
+    """
+    found: list[str] = []
+    for migration in discover(directory):
+        for name in _CREATE_EXTENSION.findall(strip_comments(migration.sql)):
+            if name not in found:
+                found.append(name)
+    return found
+
+
+def missing_extensions(conn, directory: Path | None = None) -> list[str]:
+    """Required extensions this server cannot provide, in order.
+
+    "Available" means the files are installed, not that the extension has been
+    created -- creating it is a migration's job.
+    """
+    required = required_extensions(directory)
+    if not required:
+        return []
+    rows_ = rows(conn,
+                 "SELECT name FROM pg_available_extensions WHERE name = ANY(%s)",
+                 (required,))
+    available = {r[0] for r in rows_}
+    return [name for name in required if name not in available]
+
+
+def contrib_hint(conn) -> str:
+    """How to install the missing pieces, named for this server's packaging."""
+    version = scalar(conn, "SHOW server_version") or ""
+    major = version.split(".")[0].split()[0]
+    return (f"install the PostgreSQL contrib modules: "
+            f"`postgresql{major}-contrib` (RHEL/PGDG) or "
+            f"`postgresql-contrib` (Debian/Ubuntu)")
 
 
 def scalar(conn, sql: str, params=None):
@@ -116,6 +162,16 @@ def changed_since_applied(conn, directory: Path | None = None) -> list[Migration
         if rec and rec[1] != m.checksum:
             out.append(m)
     return out
+
+
+def preflight(conn, directory: Path | None = None) -> None:
+    """Refuse before touching anything if a prerequisite is absent."""
+    missing = missing_extensions(conn, directory)
+    if missing:
+        raise MigrationError(
+            f"this server cannot provide: {', '.join(missing)}\n"
+            f"    {contrib_hint(conn)}"
+        )
 
 
 def apply_one(conn, migration: Migration) -> int:

@@ -33,7 +33,7 @@ export default function App() {
 
   // Null until /fabrics resolves. Everything below keys on it, so nothing may
   // fetch before it is known.
-  const { fabric, fabrics, select, error: fabricError } = useFabric();
+  const { fabric, fabrics, select, loading: fabricLoading, error: fabricError } = useFabric();
   const ready = fabric !== null;
 
   // One graph, two producers. Both hooks run unconditionally and `enabled` 
@@ -208,6 +208,7 @@ export default function App() {
   // would destroy the Cytoscape core - so a single bad poll would blank the
   // graph and throw away every position, selection and collapsed group.
   if (fabricError && !ready) return <LoadFailed error={fabricError} />;
+  if (!fabricLoading && !fabricError && fabrics.length === 0) return <NoFabricYet />;
   if (active.isError && !model) return <LoadFailed error={active.error} />;
 
   // Wait for saved layouts too, so the graph builds with the active one already
@@ -309,9 +310,27 @@ function LoadFailed({ error }: { error: unknown }) {
         <>
           Could not reach the API: {error instanceof Error ? error.message : String(error)}
           <br />
-          <span className="muted">Start it with: python -m api --config ./api.toml</span>
+          <span className="muted">Start it with: infinimap-api</span>
         </>
       )}
+    </div>
+  );
+}
+
+/** `/fabrics` answered with an empty list: API and database are fine, but no
+ *  collector has completed a sweep, so there is no fabric to draw. The fabrics
+ *  query polls while the list is empty, so this screen replaces itself with
+ *  the map once the first sweep lands. */
+function NoFabricYet() {
+  return (
+    <div className="loading">
+      No fabric recorded yet.
+      <br />
+      <span className="muted">
+        The API and database are up, but no collector has completed a sweep.
+        Run infinimap-collector on a fabric-attached node - this page will pick
+        it up by itself.
+      </span>
     </div>
   );
 }

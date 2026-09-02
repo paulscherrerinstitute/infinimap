@@ -60,15 +60,43 @@ def check(dsn: str) -> list[Finding]:
         conn = psycopg.connect(dsn, autocommit=True, connect_timeout=10)
     except Exception as exc:                          # noqa: BLE001
         return [Finding(Status.FAIL, "connection", _first_line(exc),
-                        "check the DSN, that the server accepts remote "
-                        "connections (listen_addresses, pg_hba.conf), and that "
-                        "the database exists -- `infinimap-db init` creates it")]
+                        _connection_hint(exc))]
 
     with conn:
         out = [Finding(Status.OK, "connection", _server_version(conn))]
         out += _timescale_findings(conn)
+        out += _extension_findings(conn)
         out += _schema_findings(conn)
     return out
+
+
+def _connection_hint(exc: Exception) -> str:
+    """Name the likely fix, rather than listing every possible one.
+
+    With no user in the DSN, libpq connects as the OS user -- so the first thing
+    a new operator sees is a role named after their account that nobody created.
+    """
+    message = str(exc).lower()
+    if "does not exist" in message and "role" in message:
+        return ("no PostgreSQL role for this user. Run setup as the superuser:\n"
+                "         sudo -u postgres $(command -v infinimap-db) init "
+                "--dsn postgresql:///postgres\n"
+                "         (or name a user in the DSN: postgresql://USER@host/db)")
+    if "database" in message and "does not exist" in message:
+        return "`infinimap-db init` creates the database"
+    if "password" in message or "authentication" in message:
+        return ("check the password in the DSN, and that pg_hba.conf allows "
+                "this method for this host")
+    if "no such file or directory" in message or "connection refused" in message:
+        return ("nothing is listening there: PostgreSQL is not running -- or "
+                "not installed -- on that host. Install PostgreSQL with "
+                "TimescaleDB (https://docs.timescale.com/self-hosted/latest/"
+                "install/), then:\n"
+                "         sudo systemctl start postgresql"
+                "  (postgresql-16 for PGDG packages on RHEL)")
+    return ("check the DSN, that the server accepts remote connections "
+            "(listen_addresses, pg_hba.conf), and that the database exists -- "
+            "`infinimap-db init` creates it")
 
 
 def _first_line(exc: Exception) -> str:
@@ -91,21 +119,45 @@ def _timescale_findings(conn) -> list[Finding]:
         return [Finding(Status.FAIL, "timescaledb", "not installed on this server",
                         _INSTALL_HINT)]
 
-    preloaded = scalar(conn, "SHOW shared_preload_libraries")
-    if "timescaledb" not in preloaded:
-        return [Finding(Status.FAIL, "timescaledb",
-                        f"installed ({available[0]}) but not preloaded",
-                        "sudo timescaledb-tune && sudo systemctl restart postgresql")]
-
     created = rows(conn,
         "SELECT extversion FROM pg_extension WHERE extname = 'timescaledb'")
     created = created[0] if created else None
-    if not created:
+    if created:
+        return [Finding(Status.OK, "timescaledb", f"version {created[0]}")]
+
+    try:
+        preloaded = scalar(conn, "SHOW shared_preload_libraries")
+    except Exception:
+        # Unprivileged role, so preload state is unknowable -- but init is the
+        # next step either way, and it reports the preload problem itself.
         return [Finding(Status.FAIL, "timescaledb",
                         f"available ({available[0]}) but not created in this database",
                         "infinimap-db init  (CREATE EXTENSION needs a superuser)")]
+    if "timescaledb" not in preloaded:
+        return [Finding(Status.FAIL, "timescaledb",
+                        f"installed ({available[0]}) but not preloaded",
+                        "sudo timescaledb-tune && sudo systemctl restart postgresql"
+                        "  (postgresql-16 for PGDG packages on RHEL)")]
 
-    return [Finding(Status.OK, "timescaledb", f"version {created[0]}")]
+    return [Finding(Status.FAIL, "timescaledb",
+                    f"available ({available[0]}) but not created in this database",
+                    "infinimap-db init  (CREATE EXTENSION needs a superuser)")]
+
+
+def _extension_findings(conn) -> list[Finding]:
+    """The other extensions the migrations create."""
+    required = [e for e in schema.required_extensions() if e != "timescaledb"]
+    if not required:
+        return []
+
+    missing = [e for e in schema.missing_extensions(conn) if e != "timescaledb"]
+    if missing:
+        return [Finding(
+            Status.FAIL, "extensions",
+            f"missing: {', '.join(missing)} (needed by the migrations)",
+            schema.contrib_hint(conn),
+        )]
+    return [Finding(Status.OK, "extensions", f"{', '.join(required)} available")]
 
 
 def _schema_findings(conn) -> list[Finding]:

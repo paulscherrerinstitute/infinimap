@@ -7,16 +7,12 @@ split_db_csv.py
 
 # Operator-supplied display-name overrides. Site data: real GUIDs and real
 # hostnames. Ship only the example.
-backend/ibfabric/id_to_name.json
+backend/infinimap/api/id_to_name.json
 
 # Working notes and scratch analysis, not part of the published tool
 /docs/
 timing_analysis.ipynb
 polltest.py
-
-# Generated fabric.json exports (regenerate via `python -m ibfabric.export`)
-backend/fabric.json
-frontend/public/fabric.json
 
 # Service configs - may hold DB credentials; we commit only the .example files
 backend/collector/collector.toml
@@ -46,6 +42,3 @@ frontend/tsconfig.tsbuildinfo
 Thumbs.db
 
 
-
-# Tests
-*.test.ts

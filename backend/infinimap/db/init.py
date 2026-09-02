@@ -81,6 +81,7 @@ def initialise(superuser_dsn: str, *, dbname: str = DEFAULT_DB,
         res.say("timescaledb extension present")
 
         if migrate:
+            schema.preflight(conn)
             schema.ensure_version_table(conn)
             todo = schema.pending(conn)
             if not todo:

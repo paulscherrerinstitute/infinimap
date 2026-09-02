@@ -63,14 +63,17 @@ export const keys = {
 // ---- fabrics --------------------------------------------------------------
 
 /**
- * The list of fabrics, fetched once per page load. Fabrics are created by an
- * operator rather than by a sweep, so there is nothing to poll for.
+ * The list of fabrics, fetched once per page load -- except while it is
+ * empty. On a fresh deployment the fabric only exists after the collector's
+ * first sweep, and polling is what turns the "no fabric yet" screen into the
+ * map without a manual reload.
  */
 export function useFabrics() {
   return useQuery({
     queryKey: keys.fabrics(),
     queryFn: ({ signal }) => listFabrics(signal),
     staleTime: Infinity,
+    refetchInterval: (query) => (query.state.data?.length === 0 ? POLL_MS : false),
   });
 }
 

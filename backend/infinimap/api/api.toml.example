@@ -29,8 +29,9 @@ fabric = "default"
 # pool_min = 1
 # pool_max = 8
 
-# path to display-name overrides json, in the format ibfabric already
-# uses: {"nodeGuid": {"0x...": "name"}, "systemImageGuid": {"0x...": "name"}}.
+# Path to display-name overrides json:
+# {"nodeGuid": {"0x...": "name"}, "systemImageGuid": {"0x...": "name"}}.
+# See id_to_name.example.json beside this file.
 # Omit to serve the descriptions the SA reports.
 # default: none
 # id_to_name_path = "/etc/infinimap/id_to_name.json"

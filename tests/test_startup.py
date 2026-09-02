@@ -202,3 +202,61 @@ def test_measurement_uses_the_fastest_sample():
     conn = FakeConn(version=0, server_epoch=epoch)
     _, round_trip = startup.measure_skew(conn, samples=3)
     assert round_trip < 0.04
+
+
+# -- required extensions -----------------------------------------------------
+
+def test_required_extensions_are_read_from_the_migrations():
+    """Parsed from the SQL, not listed, so the two cannot drift apart."""
+    from infinimap.db.schema import required_extensions
+
+    found = required_extensions()
+    assert found == ["timescaledb", "btree_gist", "intarray"]
+
+
+def test_required_extensions_ignores_commented_out_sql(tmp_path):
+    from infinimap.db.schema import required_extensions
+
+    (tmp_path / "000_x.sql").write_text(
+        "-- CREATE EXTENSION IF NOT EXISTS never_wanted;\n"
+        "/* CREATE EXTENSION also_not; */\n"
+        "CREATE EXTENSION IF NOT EXISTS wanted;\n"
+        'CREATE EXTENSION "quoted_one";\n',
+        encoding="utf-8",
+    )
+    assert required_extensions(tmp_path) == ["wanted", "quoted_one"]
+
+
+def test_required_extensions_deduplicates_across_files(tmp_path):
+    from infinimap.db.schema import required_extensions
+
+    (tmp_path / "000_a.sql").write_text("CREATE EXTENSION a;", encoding="utf-8")
+    (tmp_path / "001_b.sql").write_text(
+        "CREATE EXTENSION a;\nCREATE EXTENSION b;", encoding="utf-8")
+    assert required_extensions(tmp_path) == ["a", "b"]
+
+
+def test_connection_hint_names_the_actual_cause():
+    """The generic hint sent a real operator looking at pg_hba for a missing role."""
+    from infinimap.db.check import _connection_hint
+
+    role = _connection_hint(Exception('FATAL:  role "matos_s" does not exist'))
+    assert "sudo -u postgres" in role
+
+    db = _connection_hint(Exception('FATAL:  database "infinimap" does not exist'))
+    assert "init" in db and "sudo" not in db
+
+    auth = _connection_hint(Exception("FATAL:  password authentication failed"))
+    assert "pg_hba" in auth
+
+    # A bare machine: no socket file (local) or nothing listening (remote).
+    socket = _connection_hint(Exception(
+        'connection to server on socket "/var/run/postgresql/.s.PGSQL.5432" '
+        "failed: No such file or directory"))
+    assert "not installed" in socket and "Install PostgreSQL" in socket
+
+    refused = _connection_hint(Exception("Connection refused"))
+    assert "Install PostgreSQL" in refused
+
+    other = _connection_hint(Exception("timeout expired"))
+    assert "listen_addresses" in other

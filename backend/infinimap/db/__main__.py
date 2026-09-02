@@ -68,6 +68,7 @@ def _cmd_migrate(args: argparse.Namespace) -> int:
     import psycopg
 
     with psycopg.connect(_dsn(args), autocommit=True) as conn:
+        schema.preflight(conn)
         schema.ensure_version_table(conn)
         todo = schema.pending(conn)
         if not todo:
