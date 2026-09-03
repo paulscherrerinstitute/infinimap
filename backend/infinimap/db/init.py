@@ -34,6 +34,15 @@ class InitResult:
         self.log.append(msg)
 
 
+class PartialInit(RuntimeError):
+    """A step failed after the roles were already created."""
+
+    def __init__(self, result: InitResult, cause: Exception):
+        super().__init__(str(cause))
+        self.result = result
+        self.cause = cause
+
+
 def initialise(superuser_dsn: str, *, dbname: str = DEFAULT_DB,
                api_password: str | None = None,
                collector_password: str | None = None,
@@ -51,6 +60,10 @@ def initialise(superuser_dsn: str, *, dbname: str = DEFAULT_DB,
 
     # -- 1. the database ----------------------------------------------------
     with psycopg.connect(superuser_dsn, autocommit=True) as conn:
+        # Before creating anything: pg_available_extensions is cluster-wide, so
+        # a server missing contrib can be rejected here.
+        schema.preflight(conn)
+
         if _exists(conn, "SELECT 1 FROM pg_database WHERE datname = %s", dbname):
             res.say(f"database {dbname!r} already exists")
         else:
@@ -76,23 +89,25 @@ def initialise(superuser_dsn: str, *, dbname: str = DEFAULT_DB,
     params["dbname"] = dbname
     target_dsn = make_conninfo(**params)
 
-    with psycopg.connect(target_dsn, autocommit=True) as conn:
-        conn.execute("CREATE EXTENSION IF NOT EXISTS timescaledb")
-        res.say("timescaledb extension present")
+    try:
+        with psycopg.connect(target_dsn, autocommit=True) as conn:
+            conn.execute("CREATE EXTENSION IF NOT EXISTS timescaledb")
+            res.say("timescaledb extension present")
 
-        if migrate:
-            schema.preflight(conn)
-            schema.ensure_version_table(conn)
-            todo = schema.pending(conn)
-            if not todo:
-                res.say("schema already up to date")
-            for m in todo:
-                n = schema.apply_one(conn, m)
-                res.say(f"applied {m} ({n} statements)")
+            if migrate:
+                schema.ensure_version_table(conn)
+                todo = schema.pending(conn)
+                if not todo:
+                    res.say("schema already up to date")
+                for m in todo:
+                    n = schema.apply_one(conn, m)
+                    res.say(f"applied {m} ({n} statements)")
 
-        for stmt in _grants(dbname):
-            conn.execute(stmt)
-        res.say(f"granted {API_ROLE} read-only, {COLLECTOR_ROLE} write")
+            for stmt in _grants(dbname):
+                conn.execute(stmt)
+            res.say(f"granted {API_ROLE} read-only, {COLLECTOR_ROLE} write")
+    except Exception as exc:                              # noqa: BLE001
+        raise PartialInit(res, exc) from exc
 
     return res
 

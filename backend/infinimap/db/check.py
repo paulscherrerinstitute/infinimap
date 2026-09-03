@@ -93,7 +93,8 @@ def _connection_hint(exc: Exception) -> str:
                 "TimescaleDB (https://docs.timescale.com/self-hosted/latest/"
                 "install/), then:\n"
                 "         sudo systemctl start postgresql"
-                "  (postgresql-16 for PGDG packages on RHEL)")
+                "  (PGDG packages on RHEL name the unit for the major\n"
+                "         version instead: postgresql-18)")
     return ("check the DSN, that the server accepts remote connections "
             "(listen_addresses, pg_hba.conf), and that the database exists -- "
             "`infinimap-db init` creates it")
@@ -108,6 +109,14 @@ def _server_version(conn) -> str:
     v = scalar(conn, "SHOW server_version")
     who = rows(conn, "SELECT current_user, current_database()")[0]
     return f"PostgreSQL {v}, connected as {who[0]} to {who[1]}"
+
+
+def _major(conn) -> str:
+    """The server's major version, for hints that have to name it."""
+    try:
+        return str(scalar(conn, "SHOW server_version_num"))[:2]
+    except Exception:                                 # noqa: BLE001
+        return "16"
 
 
 def _timescale_findings(conn) -> list[Finding]:
@@ -134,10 +143,14 @@ def _timescale_findings(conn) -> list[Finding]:
                         f"available ({available[0]}) but not created in this database",
                         "infinimap-db init  (CREATE EXTENSION needs a superuser)")]
     if "timescaledb" not in preloaded:
+        major = _major(conn)
         return [Finding(Status.FAIL, "timescaledb",
                         f"installed ({available[0]}) but not preloaded",
-                        "sudo timescaledb-tune && sudo systemctl restart postgresql"
-                        "  (postgresql-16 for PGDG packages on RHEL)")]
+                        f"sudo timescaledb-tune --pg-config="
+                        f"/usr/pgsql-{major}/bin/pg_config\n"
+                        f"         sudo systemctl restart postgresql-{major}\n"
+                        "         (packages that put pg_config on PATH need "
+                        "neither the flag nor the suffix)")]
 
     return [Finding(Status.FAIL, "timescaledb",
                     f"available ({available[0]}) but not created in this database",

@@ -260,3 +260,27 @@ def test_connection_hint_names_the_actual_cause():
 
     other = _connection_hint(Exception("timeout expired"))
     assert "listen_addresses" in other
+
+
+# -- init --------------------------------------------------------------------
+
+def test_a_failed_init_still_prints_the_passwords_it_created(capsys, monkeypatch):
+    """Roles are committed before the migrations run."""
+    from infinimap.db import __main__ as cli
+    from infinimap.db import init as init_mod
+
+    res = init_mod.InitResult(
+        log=["created database 'infinimap'", "created role 'infinimap_api'"],
+        passwords={"infinimap_api": "s3cret", "infinimap_collector": "t0ps3cret"},
+    )
+
+    def boom(*_a, **_kw):
+        raise init_mod.PartialInit(res, RuntimeError("cannot provide: btree_gist"))
+
+    monkeypatch.setattr(init_mod, "initialise", boom)
+    code = cli.main(["init", "--dsn", "postgresql:///postgres"])
+
+    out = capsys.readouterr()
+    assert code == 2
+    assert "s3cret" in out.out and "t0ps3cret" in out.out
+    assert "btree_gist" in out.err

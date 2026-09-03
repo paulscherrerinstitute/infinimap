@@ -82,14 +82,7 @@ def _cmd_migrate(args: argparse.Namespace) -> int:
     return 0
 
 
-def _cmd_init(args: argparse.Namespace) -> int:
-    res = init_mod.initialise(
-        _dsn(args),
-        dbname=args.dbname,
-        api_password=args.api_password,
-        collector_password=args.collector_password,
-        migrate=not args.no_migrate,
-    )
+def _report(res: init_mod.InitResult) -> None:
     for line in res.log:
         print(line)
 
@@ -100,6 +93,27 @@ def _cmd_init(args: argparse.Namespace) -> int:
         print("\nPut the collector's in its config on the fabric node, and the "
               "API's in api.toml.\nIf that node is remote, the server also needs "
               "listen_addresses and a pg_hba.conf entry.")
+
+
+def _cmd_init(args: argparse.Namespace) -> int:
+    try:
+        res = init_mod.initialise(
+            _dsn(args),
+            dbname=args.dbname,
+            api_password=args.api_password,
+            collector_password=args.collector_password,
+            migrate=not args.no_migrate,
+        )
+    except init_mod.PartialInit as exc:
+        # The roles are already in the cluster; print their passwords before
+        # the error or they are lost, since a re-run will not touch them.
+        _report(exc.result)
+        print(f"\nerror: {exc.cause}", file=sys.stderr)
+        print("the database and roles above survive; fix the above and re-run "
+              "init", file=sys.stderr)
+        return 2
+
+    _report(res)
     return 0
 
 

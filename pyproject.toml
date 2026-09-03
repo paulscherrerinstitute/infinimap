@@ -12,6 +12,7 @@ build-backend = "setuptools.build_meta"
 name = "infinimap"
 dynamic = ["version"]          # read from infinimap.__version__, so it is stated once
 description = "A live, time-aware map of an InfiniBand fabric"
+readme = "README.md"
 requires-python = ">=3.11"     # tomllib is stdlib from 3.11; dataclass slots from 3.10
 
 # The base install is what both halves need: a database driver. That is enough
@@ -50,13 +51,13 @@ package-dir = { "" = "backend" }
 
 [tool.setuptools.packages.find]
 where = ["backend"]
-include = ["infinimap*"]       # excludes backend/ibfabric, the pre-database prototype
+include = ["infinimap*"]
 
 [tool.setuptools.package-data]
 # Loaded via Path(__file__).parent, so it must sit beside the module.
 "infinimap.ibcore" = ["*.json"]
 # web/** is the built frontend, placed here by CI before the wheel is built.
-"infinimap.api" = ["*.example", "web/**/*"]
+"infinimap.api" = ["*.example", "*.example.json", "web/**/*"]
 "infinimap.collector" = ["*.example"]
 # The schema ships with the package: an operator installing a wheel has no repo.
 "infinimap.db" = ["migrations/*.sql"]
