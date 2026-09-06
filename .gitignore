@@ -17,6 +17,9 @@ polltest.py
 # Service configs - may hold DB credentials; we commit only the .example files
 backend/collector/collector.toml
 backend/api/api.toml
+backend/infinimap/collector/collector.toml
+backend/infinimap/api/api.toml
+backend/infinimap/api/id_to_name.json
 
 # Python
 __pycache__/
