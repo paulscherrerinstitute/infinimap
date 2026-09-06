@@ -73,7 +73,7 @@ def test_collector_interval_must_be_a_number():
 
 def _args(**kw) -> argparse.Namespace:
     base = dict(config=None, dsn=None, fabric=None, subnet_prefix=None,
-                interval=None, from_dir=None)
+                interval=None, query_timeout=None, from_dir=None)
     return argparse.Namespace(**{**base, **kw})
 
 
@@ -118,3 +118,120 @@ def test_traffic_interval_from_file_survives(tmp_path):
 def test_subnet_prefix_accepts_hex(tmp_path):
     cfg = _config_from(_args(subnet_prefix="0xfe80000000000000"))
     assert cfg.subnet_prefix == 0xFE80000000000000
+
+
+# -- the full environment surface --------------------------------------------
+
+def test_api_every_file_key_has_an_env_var():
+    """Every key api.toml accepts must be reachable from the environment.
+
+    Two spellings differ deliberately -- `fabric` is `default_fabric` in the
+    dataclass -- so the comparison is over FIELDS, not over key names.
+    """
+    from dataclasses import fields
+    covered = set(api_config.ENV_VARS.values())
+    missing = {f.name for f in fields(api_config.Config())} - covered
+    assert missing == set(), f"unreachable from the environment: {missing}"
+
+
+def test_collector_every_file_key_has_an_env_var():
+    from dataclasses import fields
+    covered = set(col_config.ENV_VARS.values())
+    missing = {f.name for f in fields(col_config.defaults())} - covered
+    assert missing == set(), f"unreachable from the environment: {missing}"
+
+
+def test_api_new_env_vars():
+    cfg = api_config.from_env(api_config.Config(), {
+        "INFINIMAP_POOL_MIN": "3",
+        "INFINIMAP_POOL_MAX": "40",
+        "INFINIMAP_ID_TO_NAME": "/etc/infinimap/id_to_name.json",
+        "INFINIMAP_LOG_LEVEL": "warning",
+    })
+    assert cfg.pool_min == 3
+    assert cfg.pool_max == 40
+    assert str(cfg.id_to_name_path).replace("\\", "/") \
+        == "/etc/infinimap/id_to_name.json"
+    assert cfg.log_level == "warning"
+
+
+def test_api_pool_bounds_must_be_integers():
+    with pytest.raises(ValueError, match="INFINIMAP_POOL_MAX"):
+        api_config.from_env(api_config.Config(), {"INFINIMAP_POOL_MAX": "lots"})
+
+
+def test_api_cors_origins_from_env_is_comma_separated():
+    """An environment variable has no arrays, so the list is comma-separated.
+    A trailing comma is not an origin."""
+    cfg = api_config.from_env(api_config.Config(), {
+        "INFINIMAP_CORS_ORIGINS": "https://a.example, https://b.example,",
+    })
+    assert cfg.cors_origins == ("https://a.example", "https://b.example")
+
+
+def test_collector_new_env_vars():
+    cfg = col_config.from_env(col_config.defaults(), {
+        "INFINIMAP_QUERY_TIMEOUT": "300",
+        "INFINIMAP_SUBNET_PREFIX": "0xfe80000000000000",
+        "INFINIMAP_FROM_DIR": "/tmp/fixtures",
+        "INFINIMAP_LOG_LEVEL": "debug",
+    })
+    assert cfg.query_timeout_s == 300.0
+    assert cfg.subnet_prefix == 0xFE80000000000000
+    assert cfg.from_dir == "/tmp/fixtures"
+    assert cfg.log_level == "debug"
+
+
+def test_collector_subnet_prefix_env_rejects_nonsense():
+    with pytest.raises(ValueError, match="INFINIMAP_SUBNET_PREFIX"):
+        col_config.from_env(col_config.defaults(),
+                            {"INFINIMAP_SUBNET_PREFIX": "the-default-one"})
+
+
+# -- unknown keys ------------------------------------------------------------
+
+def test_collector_warns_about_an_unknown_key(caplog):
+    with caplog.at_level("WARNING"):
+        cfg = col_config.from_mapping({"dsn": "x", "interval": 60})
+    assert "interval" in caplog.text
+    assert cfg.dsn == "x"
+    assert cfg.interval_s == 300.0
+
+
+def test_api_warns_about_an_unknown_key(caplog):
+    with caplog.at_level("WARNING"):
+        cfg = api_config.from_mapping({"prot": 8080})
+    assert "prot" in caplog.text
+    assert cfg.port == 8000
+
+
+def test_a_clean_file_warns_about_nothing(caplog):
+    with caplog.at_level("WARNING"):
+        api_config.from_mapping({k: "x" for k in api_config.KNOWN_KEYS
+                                 if k not in {"port", "pool_min", "pool_max",
+                                              "cors_origins"}})
+        col_config.from_mapping({"dsn": "x", "fabric": "f", "interval_s": 1,
+                                 "traffic_interval_s": 1, "log_level": "info",
+                                 "max_clock_skew_s": 0, "query_timeout_s": 1})
+    assert caplog.text == ""
+
+
+# -- query timeout -----------------------------------------------------------
+
+def test_query_timeout_layers(tmp_path, monkeypatch):
+    """File, then environment, then flag -- the same order as everything else."""
+    path = _write(tmp_path, "query_timeout_s = 200\n")
+    assert _config_from(_args(config=path)).query_timeout_s == 200.0
+
+    monkeypatch.setenv("INFINIMAP_QUERY_TIMEOUT", "300")
+    assert _config_from(_args(config=path)).query_timeout_s == 300.0
+
+    assert _config_from(_args(config=path, query_timeout=400)).query_timeout_s == 400.0
+
+
+def test_query_timeout_defaults_unchanged():
+    """The default must not have moved: changing it silently would change how
+    every existing deployment behaves on a slow fabric."""
+    from infinimap.collector.acquire.result import DEFAULT_TIMEOUT_S
+    assert col_config.defaults().query_timeout_s == 120.0
+    assert DEFAULT_TIMEOUT_S == 120.0
