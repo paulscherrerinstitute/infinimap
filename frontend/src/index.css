@@ -559,6 +559,31 @@ body {
   white-space: nowrap;
 }
 
+/* A degraded link's reason, from /selection. */
+.worst-list .worst-reason { flex-basis: 100%; font-size: 10px; line-height: 1.35; }
+
+/* Count histogram. */
+.hist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 3px; }
+.hist-row { display: flex; align-items: center; gap: 6px; font-size: 11px; }
+.hist-label {
+  flex: 0 0 40%;
+  min-width: 0;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.hist-bar { flex: 1; height: 6px; background: var(--panel-2); border-radius: 3px; overflow: hidden; }
+.hist-fill { display: block; height: 100%; background: var(--accent); opacity: 0.7; }
+.hist-count { flex: 0 0 auto; min-width: 24px; text-align: right; font-variant-numeric: tabular-nums; }
+
+/* The ports that contributed most. */
+.port-notes { list-style: none; margin: 6px 0 0; padding: 6px 0 0; border-top: 1px dashed var(--border);
+  display: flex; flex-direction: column; gap: 3px; }
+.port-notes li { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; font-size: 11px; }
+.port-note-name { min-width: 0; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.port-notes .stat-value { font-size: 12px; flex-shrink: 0; font-variant-numeric: tabular-nums; }
+
 .summary-actions { margin-top: 16px; padding: 0 10px; }
 .summary-actions button {
   width: 100%;
@@ -662,3 +687,87 @@ body {
   width: 11px;
   height: 11px;
 }
+
+/* ---- settings popover (per-browser preferences) -------------------------- */
+.settings-anchor { position: relative; margin-left: 10px; }
+.settings-gear {
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 2px 6px;
+  font-size: 15px;
+  line-height: 1.2;
+  cursor: pointer;
+}
+.settings-gear:hover { color: var(--text); border-color: var(--border); }
+
+.settings-pop {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 60;
+  width: 280px;
+  max-height: 78vh;
+  overflow-y: auto;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
+  padding: 10px 12px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  font-size: 12px;
+}
+.settings-head { display: flex; align-items: baseline; gap: 8px; }
+.settings-head .muted { font-size: 10px; }
+.settings-close {
+  margin-left: auto;
+  background: none;
+  border: 0;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 0 2px;
+}
+.settings-close:hover { color: var(--text); }
+
+.settings-section { display: flex; flex-direction: column; gap: 6px; }
+.settings-section h3 {
+  margin: 0;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--muted);
+  border-top: 1px solid var(--border);
+  padding-top: 8px;
+}
+.settings-section:first-of-type h3 { border-top: 0; padding-top: 0; }
+.settings-section select {
+  background: var(--panel-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 3px 6px;
+  font-size: 12px;
+  width: 100%;
+}
+.settings-note { font-size: 10px; line-height: 1.4; margin: 0; }
+
+.settings-slider { display: flex; flex-direction: column; gap: 2px; cursor: pointer; }
+.settings-slider-head { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+.settings-slider-head .stat-value { font-size: 12px; font-variant-numeric: tabular-nums; }
+.settings-slider input[type="range"] { width: 100%; accent-color: var(--accent); }
+
+.settings-actions button {
+  width: 100%;
+  background: var(--panel-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 5px 10px;
+  cursor: pointer;
+  font-size: 12px;
+}
+.settings-actions button:hover { border-color: var(--accent); }

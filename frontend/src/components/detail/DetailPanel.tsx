@@ -3,9 +3,7 @@ import type { SelectedItem } from "../../api/types";
 import type { GraphModel } from "../../model/graph";
 import { CardsPanel } from "./CardsPanel";
 import { SummaryPanel } from "./SummaryPanel";
-
-// At or above this many selected items, show aggregates instead of cards.
-const SUMMARY_THRESHOLD = 20;
+import { useSettings } from "../../settings/SettingsContext";
 
 interface Props {
   fabric: string;
@@ -25,6 +23,8 @@ export function DetailPanel({
   fabric, model, selection, onNavigate, onDeselect, onSetSelection,
   countersWindow, withTraffic,
 }: Props) {
+  // At or above this many selected items, show aggregates instead of cards.
+  const { settings } = useSettings();
   const [forceCards, setForceCards] = useState(false); // Force individual cards regardless of count.
   const prevIds = useRef<string[]>([]);
 
@@ -37,7 +37,7 @@ export function DetailPanel({
     prevIds.current = ids;
   }, [selection]);
 
-  const summarizing = selection.length >= SUMMARY_THRESHOLD && !forceCards;
+  const summarizing = selection.length >= settings.summaryThreshold && !forceCards;
 
   return (
     <aside className="panel">
@@ -45,11 +45,14 @@ export function DetailPanel({
         <p className="panel-hint">Select a node or link on the graph to inspect it.</p>
       ) : summarizing ? (
         <SummaryPanel
+          fabric={fabric}
           model={model}
           selection={selection}
           onSetSelection={onSetSelection}
           onNavigate={onNavigate}
           onShowAll={() => setForceCards(true)}
+          countersWindow={countersWindow}
+          withTraffic={withTraffic}
         />
       ) : (
         <CardsPanel

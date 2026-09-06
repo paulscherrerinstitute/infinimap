@@ -72,6 +72,41 @@ export type PortTraffic =
   & Partial<Pick<S["PortTraffic"], TrafficOptional>>;
 export type TrafficCoverage = S["TrafficCoverage"];
 
+// ---- selection summary ----------------------------------------------------
+
+// The mirror image of the PortErrorDelta correction above.
+type Filled<T, K extends keyof T> = Omit<T, K> & { [P in K]-?: NonNullable<T[P]> };
+
+export type SelectionRequest = S["SelectionRequest"];
+export type Tallied = S["Tallied"];
+export type LinkNote = Filled<S["LinkNote"], "reason">;
+export type PortNote = Filled<S["PortNote"], "detail">;
+export type SelectionCounts = Filled<S["SelectionCounts"], "missing">;
+
+export type SelectionNodes = Filled<
+  S["SelectionNodes"], "health" | "types" | "firmware" | "vendors" | "models">;
+
+export type SelectionLinks = Omit<
+  Filled<S["SelectionLinks"], "health" | "speeds" | "widths">, "degraded"
+> & { degraded: LinkNote[] };
+
+export type SelectionCounters = Omit<
+  Filled<S["SelectionCounters"], "totals">, "top_ports"
+> & { top_ports: PortNote[] };
+
+export type SelectionTraffic = Omit<S["SelectionTraffic"], "top_ports">
+  & { top_ports: PortNote[] };
+
+export type SelectionSummary = Omit<
+  S["SelectionSummary"], "requested" | "nodes" | "links" | "counters" | "traffic"
+> & {
+  requested: SelectionCounts;
+  nodes: SelectionNodes;
+  links: SelectionLinks;
+  counters: SelectionCounters | null;
+  traffic: SelectionTraffic | null;
+};
+
 // ---- top level ------------------------------------------------------------
 
 export type Topology = S["Topology"];

@@ -1,31 +1,41 @@
 # infinimap read API configuration EXAMPLE.
 #
-# Any key omitted here falls back to the built-in default noted above it.
+# Settings resolve: command-line flag -> environment -> this file -> built-in
+# default.
+#
+# A key this file does not recognise is logged as a WARNING at startup and
+# otherwise ignored -- check the first lines of the log after editing.
 
 # libpq connection string for the monitor database.
-# default: "postgresql:///infinimap"
+# The API's role is read-only; see `infinimap-db init`.
+# env: INFINIMAP_DSN            default: "postgresql:///infinimap"
 dsn = "postgresql:///infinimap"
 
-# Interface to bind.
-# default: "127.0.0.1"
+# Interface to bind. "0.0.0.0" serves the network; see the README on doing that
+# safely, since the API is unauthenticated.
+# env: INFINIMAP_HOST           default: "127.0.0.1"
 host = "127.0.0.1"
 
-# HTTP listen port.
-# default: 8000
+# HTTP listen port. Serves both the JSON API and the web UI.
+# env: INFINIMAP_PORT           default: 8000
 port = 8000
 
 # Fabric served when a request does not name one.
-# default: "default"
+# env: INFINIMAP_FABRIC         default: "default"
 fabric = "default"
 
 # Browser origins allowed to call the API. The default covers a local Vite dev
 # server; a deployment serving the built frontend from the same origin needs
 # none of these.
+# From the environment this is COMMA-SEPARATED, since a variable has no arrays:
+#   INFINIMAP_CORS_ORIGINS="https://a.example,https://b.example"
+# env: INFINIMAP_CORS_ORIGINS
 # default: ["http://localhost:5173", "http://127.0.0.1:5173"]
 # cors_origins = ["https://infinimap.example.internal"]
 
 # Connection pool bounds. Queries are short, so a small pool goes a long way.
-# default: 1 / 8
+# Raise pool_max only if you see requests queueing behind each other.
+# env: INFINIMAP_POOL_MIN / INFINIMAP_POOL_MAX      default: 1 / 8
 # pool_min = 1
 # pool_max = 8
 
@@ -33,16 +43,17 @@ fabric = "default"
 # {"nodeGuid": {"0x...": "name"}, "systemImageGuid": {"0x...": "name"}}.
 # See id_to_name.example.json beside this file.
 # Omit to serve the descriptions the SA reports.
-# default: none
+# env: INFINIMAP_ID_TO_NAME     default: none
 # id_to_name_path = "/etc/infinimap/id_to_name.json"
 
 # Built frontend to serve at `/`. Omit to look for one automatically: bundled
-# inside the package, then ../frontend/dist in a source checkout. With a bundle 
-# present the API serves the UI and the JSON on one origin, and cors_origins 
+# inside the package, then ../frontend/dist in a source checkout. With a bundle
+# present the API serves the UI and the JSON on one origin, and cors_origins
 # above becomes unnecessary.
-# default: none
+# env: INFINIMAP_WEB_ROOT       default: none
 # web_root = "/usr/share/infinimap/web"
 
-# Every setting above can also come from the environment, which overrides this
-# file: INFINIMAP_DSN, INFINIMAP_FABRIC, INFINIMAP_HOST, INFINIMAP_PORT,
-# INFINIMAP_WEB_ROOT.
+# Root logger level: debug, info, warning, error, critical.
+# `-v` on the command line forces debug and overrides this.
+# env: INFINIMAP_LOG_LEVEL      default: "info"
+# log_level = "info"

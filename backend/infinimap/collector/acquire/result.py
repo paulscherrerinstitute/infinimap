@@ -6,7 +6,9 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
-DEFAULT_TIMEOUT_S = 120
+#: Seconds one tool invocation may take. The collector's
+#: `query_timeout_s` overrides it per run.
+DEFAULT_TIMEOUT_S = 120.0
 
 
 @dataclass(frozen=True)
@@ -22,7 +24,7 @@ class QueryResult:
 
 
 def run_tool(argv: list[str], name: str,
-             timeout_s: int = DEFAULT_TIMEOUT_S) -> QueryResult:
+             timeout_s: float = DEFAULT_TIMEOUT_S) -> QueryResult:
     """Run a command, capturing everything. Never raises: a tool that is missing
     or hung is a QueryResult like any other, so one bad source cannot take down
     the cycle before the rest of it has been recorded."""

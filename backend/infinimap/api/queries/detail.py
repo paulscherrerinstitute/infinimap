@@ -103,7 +103,7 @@ def node(db: Database, fabric_id: int, guid_hex: str, at: datetime | None,
     # back to `str`, which node_health no longer accepts.
     healths: list[Health] = [p.peer.health for p in ports if p.peer and p.peer.health]
     guid_s = guid_str(n["node_guid"])
-    vendor, model = _device(n["vendor_id"], n["device_id"])
+    vendor, model = device_names(n["vendor_id"], n["device_id"])
 
     return NodeDetail(
         vendor=vendor,
@@ -164,7 +164,7 @@ def link(db: Database, fabric_id: int, link_id: str, at: datetime | None,
 
 # ---- assembly ------------------------------------------------------------
 
-def _device(vendor_id: int | None, device_id: int | None):
+def device_names(vendor_id: int | None, device_id: int | None):
     """Vendor and model names for an IEEE OUI plus vendor device id.
 
     The loader prints to stdout on first use, and it prefers a system 

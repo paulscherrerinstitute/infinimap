@@ -88,11 +88,14 @@ def main(argv: list[str]) -> int:
     args = _parse_args(argv)
     # Log in UTC
     logging.Formatter.converter = time.gmtime
+    # INFO until the config is read, so the config loader's own warnings (an
+    # unknown key, say) are not swallowed by the level that config sets.
     logging.basicConfig(
         level=logging.DEBUG if args.verbose else logging.INFO,
         format="%(asctime)s %(levelname)s %(name)s %(message)s",
     )
     cfg = _load_config(args)
+    logging.getLogger().setLevel(_level(cfg.log_level, args.verbose))
 
     if args.openapi:
         _write_openapi(cfg, args.openapi)
@@ -101,6 +104,18 @@ def main(argv: list[str]) -> int:
     uvicorn, create_app = _server_bits()
     uvicorn.run(create_app(cfg), host=cfg.host, port=cfg.port)
     return 0
+
+
+def _level(name: str, verbose: bool) -> int:
+    """The configured level, unless -v was passed.
+
+    `-v` is the innermost layer of the precedence and so wins over both the
+    file and the environment.
+    """
+    if verbose:
+        return logging.DEBUG
+    return getattr(logging, name.upper(), None) if isinstance(
+        getattr(logging, name.upper(), None), int) else logging.INFO
 
 
 def console() -> int:

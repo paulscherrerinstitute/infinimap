@@ -144,7 +144,7 @@ def error_deltas(db: Database, fabric_id: int, fabric: str,
 
     return assemble(fabric, since, until, caps=caps, baseline=baseline,
                     latest=latest, extrema=extrema,
-                    ports=_identity_for(db, fabric_id, caps.keys()))
+                    ports=identity_for(db, fabric_id, caps.keys()))
 
 
 def assemble(fabric: str, since: datetime, until: datetime, *,
@@ -260,8 +260,8 @@ def assemble(fabric: str, since: datetime, until: datetime, *,
     )
 
 
-def _identity_for(db: Database, fabric_id: int, port_ids) -> dict[int, tuple[int, int]]:
-    """port_id -> (node_guid, port_number), reloading once on a miss."""
+def identity_for(db: Database, fabric_id: int, port_ids) -> dict[int, tuple[int, int]]:
+    """port_id -> (node_guid, port_number), reloading once on a miss"""
     ports, _ = db.identity(fabric_id)
     if set(port_ids) - ports.keys():
         ports, _ = db.refresh_identity(fabric_id)
@@ -393,7 +393,7 @@ def traffic_rates(db: Database, fabric_id: int, fabric: str, until: datetime,
 
     return assemble_traffic(
         fabric, until, window, cadence, port_ids=port_ids, baseline=baseline,
-        latest=latest, ports=_identity_for(db, fabric_id, port_ids),
+        latest=latest, ports=identity_for(db, fabric_id, port_ids),
     )
 
 

@@ -54,7 +54,7 @@ def _now() -> str:
 def topology_cycle(writer: Writer, cfg: Config) -> tuple[Observation, WriteResult]:
     started = time.perf_counter()
 
-    results = saquery.collect(cfg.from_dir)
+    results = saquery.collect(cfg.from_dir, cfg.query_timeout_s)
     unclean = [r for r in saquery.RECORDS if not saquery.is_clean(results[r])]
     for r in results.values():
         if not saquery.is_clean(r):
@@ -103,7 +103,7 @@ def error_cycle(writer: CounterWriter, cfg: Config,
     was nothing to read."""
     started_at = _now()
     t0 = time.perf_counter()
-    result = ibqueryerrors.collect(cfg.from_dir)
+    result = ibqueryerrors.collect(cfg.from_dir, cfg.query_timeout_s)
 
     if result.empty and result.rc == 2:
         log.debug("no ibqueryerrors output available (%s); error half skipped",
@@ -139,7 +139,7 @@ def traffic_sweep(writer: CounterWriter,
     is no universe to supply and nothing to order against."""
     started_at = _now()
     t0 = time.perf_counter()
-    result = ibqueryerrors.collect_counters(cfg.from_dir)
+    result = ibqueryerrors.collect_counters(cfg.from_dir, cfg.query_timeout_s)
 
     if result.empty and result.rc == 2:
         log.debug("no --counters output available (%s); traffic sweep skipped",

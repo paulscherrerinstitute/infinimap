@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import re
 
-from .result import QueryResult, read_fixture, run_tool
+from .result import (DEFAULT_TIMEOUT_S, QueryResult, read_fixture, run_tool)
 
 # The three records the topology is built from.
 RECORDS = ("NodeRecord", "LinkRecord", "PortInfoRecord")
@@ -45,8 +45,10 @@ def is_clean(result: QueryResult) -> bool:
     return result.rc == 0 and errors(result) == ""
 
 
-def collect(from_dir: str | None) -> dict[str, QueryResult]:
+def collect(from_dir: str | None,
+            timeout_s: float = DEFAULT_TIMEOUT_S) -> dict[str, QueryResult]:
     """Fetch every record, required and optional. Returns record -> QueryResult."""
     if from_dir is None:
-        return {r: run_tool(["sudo", "saquery", r], r) for r in ALL_RECORDS}
+        return {r: run_tool(["sudo", "saquery", r], r, timeout_s=timeout_s)
+                for r in ALL_RECORDS}
     return {r: read_fixture(from_dir, r) for r in ALL_RECORDS}

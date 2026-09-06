@@ -17,7 +17,8 @@ import type { Overlay } from "../cy/overlay";
 import type { Mode } from "../time/modes";
 import { COUNTER_GROUPS, DEFAULT_SELECTION, type Rollup } from "../model/counters";
 
-export type Mask = "health" | "change" | "errors" | "congestion" | "traffic";
+export type Mask =
+  | "health" | "change" | "errors" | "congestion" | "utilisation" | "throughput";
 
 /**
  * A value a legend row can select on -- whatever the mask's data key holds.
@@ -49,7 +50,12 @@ export const MASKS: Record<Mask, MaskSpec> = {
     label: "Congestion", key: "bin", overlay: "congestion",
     counters: ["xmit_wait"],
   },
-  traffic: { label: "Traffic", key: "bin", overlay: "traffic", counters: null },
+  utilisation: {
+    label: "Utilisation", key: "bin", overlay: "utilisation", counters: null,
+  },
+  throughput: {
+    label: "Throughput", key: "bin", overlay: "throughput", counters: null,
+  },
 };
 
 /**
@@ -62,7 +68,7 @@ export const MASKS: Record<Mask, MaskSpec> = {
 export function masksFor(mode: Mode): Mask[] {
   return mode === "compare"
     ? ["change"]
-    : ["health", "errors", "congestion", "traffic"];
+    : ["health", "errors", "congestion", "utilisation", "throughput"];
 }
 
 export function defaultMask(mode: Mode): Mask {

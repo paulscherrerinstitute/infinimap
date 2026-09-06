@@ -227,15 +227,32 @@ function unmeasured(
 
 // ---- traffic ---------------------------------------------------------------
 //
-// The overlay colours how full a link is, not how fast it is going, and the
-// divisor `LinkElement.rate_gbps` is a property of a LINK. That forces the
-// normalisation to live here rather than in the binner: a node has no line
-// rate, and percent is the one unit a node and a link can share. This is also
-// the only place that knows which link a given port belongs to.
+// Two rollups over one payload, because "how full is this link" and "how much
+// is moving through it" are different questions with different units:
+//
+//   rollupTraffic      utilisation, percent of each link's own line rate
+//   rollupThroughput   absolute flow rate, Gbps
 //
 // A port in no link contributes nothing to its node's utilisation. Switch port
 // 0 has no cable and no line rate, so "how full is it" has no meaning, and
 // inventing a denominator would put a fabricated number on a measured ramp.
+// Throughput has no divisor and so has no such gap: it counts every port that
+// reported bytes, port 0 included.
+
+/**
+ * Both ends of every link, keyed the way a port row is, with the line rate to
+ * divide by. Shared by both rollups below -- throughput ignores the rate, but
+ * still needs the port -> link mapping to give an edge a value.
+ */
+function endToLink(model: GraphModel): Map<string, { id: string; rate: number | null }> {
+  const out = new Map<string, { id: string; rate: number | null }>();
+  for (const l of model.links) {
+    const at = { id: l.el.id, rate: l.el.rate_gbps ?? null };
+    out.set(portKey(l.el.source, l.el.source_port), at);
+    out.set(portKey(l.el.target, l.el.target_port), at);
+  }
+  return out;
+}
 
 /** Both directions of one port, as a share of the link's line rate. */
 const utilisationOf = (
@@ -262,13 +279,7 @@ export function rollupTraffic(
     return unmeasured(model, undefined, new Set());
   }
 
-  // Both ends of every link, plus the line rate to divide by.
-  const endToLink = new Map<string, { id: string; rate: number | null }>();
-  for (const l of model.links) {
-    const at = { id: l.el.id, rate: l.el.rate_gbps ?? null };
-    endToLink.set(portKey(l.el.source, l.el.source_port), at);
-    endToLink.set(portKey(l.el.target, l.el.target_port), at);
-  }
+  const ends = endToLink(model);
 
   const drawn = new Set(model.nodes.map((n) => n.el.id));
   const nodes = new Map<string, number>();
@@ -282,7 +293,7 @@ export function rollupTraffic(
 
   for (const p of rates.ports) {
     if (!drawn.has(p.node)) continue;
-    const at = endToLink.get(portKey(p.node, p.port));
+    const at = ends.get(portKey(p.node, p.port));
 
     // Unpolled, or a wrapped byte counter. Neither is idle -- a 32-bit
     // PortXmitData wraps in seconds at line rate, so the second is common at
@@ -309,6 +320,58 @@ export function rollupTraffic(
     // differ -- read skew routinely has a receiver counting more than the
     // sender sent.
     if (at) links.set(at.id, Math.max(links.get(at.id) ?? 0, pct));
+  }
+
+  let peak = 0;
+  for (const v of links.values()) peak = Math.max(peak, v);
+  for (const v of nodes.values()) peak = Math.max(peak, v);
+
+  return { nodes, links, untrusted, peak, omitted: new Set(), unmeasured: false };
+}
+
+
+/**
+ * Per-port rates to per-element THROUGHPUT, in Gbps, against the drawn topology.
+ */
+export function rollupThroughput(
+  rates: TrafficRates | undefined,
+  model: GraphModel | null | undefined,
+  mode: Rollup = "max",
+): OverlayValues {
+  if (!model) return EMPTY;
+  if (!rates || rates.coverage.ports_measured <= 0) {
+    return unmeasured(model, undefined, new Set());
+  }
+
+  const ends = endToLink(model);
+  const drawn = new Set(model.nodes.map((n) => n.el.id));
+  const nodes = new Map<string, number>();
+  const links = new Map<string, number>();
+  const untrusted = new Set<string>();
+
+  for (const n of model.nodes) nodes.set(n.el.id, 0);
+  for (const l of model.links) links.set(l.el.id, 0);
+
+  for (const p of rates.ports) {
+    if (!drawn.has(p.node)) continue;
+    const at = ends.get(portKey(p.node, p.port));
+
+    // Unpolled, or a wrapped byte counter.
+    if (p.no_data || p.reset) {
+      untrusted.add(p.node);
+      if (at) untrusted.add(at.id);
+      continue;
+    }
+
+    // The busier direction.
+    const gbps = Math.max(p.tx ?? 0, p.rx ?? 0);
+
+    const seen = nodes.get(p.node);
+    nodes.set(p.node, seen === undefined ? gbps
+      : mode === "sum" ? seen + gbps : Math.max(seen, gbps));
+
+    // Worse of the two ends, matching every other link rollup here.
+    if (at) links.set(at.id, Math.max(links.get(at.id) ?? 0, gbps));
   }
 
   let peak = 0;

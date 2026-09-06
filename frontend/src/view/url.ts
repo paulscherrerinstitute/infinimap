@@ -21,6 +21,13 @@ const OWNED = [MASK, WIN, COUNTERS, ROLLUP];
 
 const isMask = (s: string): s is Mask => s in MASKS;
 
+/** A mask name from a URL, current or retired, or null if it is neither. */
+function readMask(raw: string | null): Mask | null {
+  if (raw === null) return null;
+  if (isMask(raw)) return raw;
+  return null;
+}
+
 /**
  * Read view state out of a query string.
  *
@@ -31,8 +38,7 @@ const isMask = (s: string): s is Mask => s in MASKS;
 export function parseView(search: string): ViewState {
   const q = new URLSearchParams(search);
 
-  const rawMask = q.get(MASK);
-  const mask = rawMask && isMask(rawMask) ? rawMask : DEFAULT_VIEW.mask;
+  const mask = readMask(q.get(MASK)) ?? DEFAULT_VIEW.mask;
 
   const rawWin = q.get(WIN);
   const window: WindowKey =

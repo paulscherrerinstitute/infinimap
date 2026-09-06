@@ -58,13 +58,34 @@ export const ERROR_BIN_LABEL: readonly string[] = [
   "0", "1–9", "10–99", "100–999", "1k–99k", "100k+",
 ];
 
-export const TRAFFIC_RAMP: readonly string[] = [
+/**
+ * "More is worse", shared by congestion and utilisation.
+ */
+export const LOAD_RAMP: readonly string[] = [
   "#30363d", // idle
   "#1f4d3d", // <20%
   "#2f7d5c", // 20-40%
   "#4fae6c", // 40-60%
   "#c9a227", // 60-80%
   "#d1242f", // 80%+  -- saturation is a fault condition, not a success
+];
+
+/**
+ * "More is bigger", for absolute throughput.
+ */
+export const THROUGHPUT_RAMP: readonly string[] = [
+  "#30363d", // idle -- grey, and the only grey: "nothing" is not a small blue
+  "#17405c", // 0.01-1 Gbps
+  "#1e6b9e", // 1-10
+  "#2f97cc", // 10-50
+  "#58bde8", // 50-100
+  "#9ee8f5", // 100+
+];
+
+/** Derived from THROUGHPUT_BINS in cy/overlay.ts; kept beside the ramp so the
+ *  two cannot get out of step. */
+export const THROUGHPUT_BIN_LABEL: readonly string[] = [
+  "idle", "<1", "1-10", "10-50", "50-100", "100+",
 ];
 
 

@@ -80,8 +80,9 @@ export function Toolbar({
           addMaskToSelection={addMaskToSelection}
         />
       )}
-      {mask === "traffic" && (
+      {(mask === "utilisation" || mask === "throughput") && (
         <TrafficPanel
+          mask={mask}
           values={values}
           traffic={traffic}
           loading={countersLoading}

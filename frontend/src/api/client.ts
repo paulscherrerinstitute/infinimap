@@ -9,7 +9,8 @@
 
 import type {
   Diff, ErrorDeltas, Events, FabricRow, Head, Instant, LinkDetail,
-  NodeDetail, Snapshots, Topology, TrafficRates,
+  NodeDetail, SelectionRequest, SelectionSummary, Snapshots, Topology,
+  TrafficRates,
 } from "./types";
 
 const BASE = "/api/v1";
@@ -44,6 +45,31 @@ async function get<T>(path: string, params?: Record<string, string | null | unde
     try {
       const body = await res.json();
       if (typeof body?.detail === "string") detail = body.detail;
+    } catch {
+      /* keep statusText */
+    }
+    throw new ApiError(res.status, url, detail);
+  }
+  return res.json() as Promise<T>;
+}
+
+/**
+ * The one POST in this client.
+ */
+async function post<T>(path: string, body: unknown,
+                       signal?: AbortSignal): Promise<T> {
+  const url = `${BASE}${path}`;
+  const res = await fetch(url, {
+    method: "POST",
+    signal,
+    headers: { Accept: "application/json", "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    let detail = res.statusText;
+    try {
+      const parsed = await res.json();
+      if (typeof parsed?.detail === "string") detail = parsed.detail;
     } catch {
       /* keep statusText */
     }
@@ -108,3 +134,10 @@ export const getErrorDeltas = (fabric: string, since: string, until: Instant,
 // is configurable, so the server sizes the window from the cadence it observes.
 export const getTraffic = (fabric: string, at: Instant, signal?: AbortSignal) =>
   get<TrafficRates>(`/fabrics/${fabric}/counters/traffic`, { at }, signal);
+
+// Aggregates a whole selection in one request. The server answers only what
+// the browser cannot compute from the graph model it already holds -- ports,
+// firmware, counters, and a degraded link's reason.
+export const getSelectionSummary = (fabric: string, req: SelectionRequest,
+                                    signal?: AbortSignal) =>
+  post<SelectionSummary>(`/fabrics/${fabric}/selection`, req, signal);

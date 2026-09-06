@@ -1,16 +1,27 @@
-// The toolbar section for the traffic mask.
+// The toolbar section for the two traffic masks.
 //
 // Its own component rather than a branch inside CountersPanel, because almost
 // nothing is shared.
+//
+// One component for BOTH traffic masks, though, because they read one payload:
+//
+//   utilisation  a share of each link's own line rate. "How full is it."
+//   throughput   absolute Gbps. "How much is moving."
+//
+// Everything except the legend and the closing footnote is identical between
+// them.
 
 import type { TrafficRates } from "../api/types";
 import type { OverlayValues } from "../model/counters";
-import { binUtilisation } from "../cy/overlay";
-import { TRAFFIC_RAMP, UNTRUSTED_COLOR, UNTRUSTED_LABEL } from "../cy/palette";
-import { TRAFFIC_BINS } from "../cy/overlay";
-import type { MaskValue } from "../view/mask";
+import { binThroughput, binUtilisation, UTILISATION_BINS } from "../cy/overlay";
+import {
+  LOAD_RAMP, THROUGHPUT_BIN_LABEL, THROUGHPUT_RAMP, UNTRUSTED_COLOR,
+  UNTRUSTED_LABEL,
+} from "../cy/palette";
+import type { Mask, MaskValue } from "../view/mask";
 
 interface Props {
+  mask: Mask;
   values: OverlayValues;
   traffic: TrafficRates | undefined;
   loading: boolean;
@@ -19,12 +30,42 @@ interface Props {
 
 /** Derived from the thresholds rather than written out, so the labels cannot
  *  drift from the bins the graph is actually using. */
-const BIN_LABEL: string[] = [
+const UTILISATION_BIN_LABEL: string[] = [
   "idle",
-  ...TRAFFIC_BINS.map((hi, i) =>
-    `${i === 0 ? 0 : TRAFFIC_BINS[i - 1]}–${hi}%`).slice(1),
-  `${TRAFFIC_BINS[TRAFFIC_BINS.length - 1]}%+`,
+  ...UTILISATION_BINS.map((hi, i) =>
+    `${i === 0 ? 0 : UTILISATION_BINS[i - 1]}–${hi}%`).slice(1),
+  `${UTILISATION_BINS[UTILISATION_BINS.length - 1]}%+`,
 ];
+
+/** Everything that differs between the two masks, in one place. */
+const SPEC = {
+  utilisation: {
+    heading: "Utilisation",
+    unit: "% of line rate",
+    ramp: LOAD_RAMP,
+    labels: UTILISATION_BIN_LABEL,
+    binOf: binUtilisation,
+    note: (
+      <>
+        A share of each link’s own line rate, not absolute Gbps. 
+        Switch to <strong>Throughput</strong> to see those.
+      </>
+    ),
+  },
+  throughput: {
+    heading: "Throughput",
+    unit: "Gbps",
+    ramp: THROUGHPUT_RAMP,
+    labels: THROUGHPUT_BIN_LABEL,
+    binOf: binThroughput,
+    note: (
+      <>
+        Absolute Gbps. Switch to{" "}
+        <strong>Utilisation</strong> to see how full each link is.
+      </>
+    ),
+  },
+} as const;
 
 /** Gbps at a readable magnitude. A fabric spans idle ports and 200 Gbps ones. */
 function gbps(v: number): string {
@@ -33,10 +74,14 @@ function gbps(v: number): string {
   return v.toFixed(2);
 }
 
-export function TrafficPanel({ values, traffic, loading, addMaskToSelection }: Props) {
-  const hist = new Array(TRAFFIC_RAMP.length).fill(0) as number[];
+export function TrafficPanel({
+  mask, values, traffic, loading, addMaskToSelection,
+}: Props) {
+  const spec = SPEC[mask as keyof typeof SPEC] ?? SPEC.utilisation;
+
+  const hist = new Array(spec.ramp.length).fill(0) as number[];
   for (const v of values.links.values()) {
-    const bin = binUtilisation(v);
+    const bin = spec.binOf(v);
     if (bin !== null) hist[bin] += 1;
   }
 
@@ -46,10 +91,15 @@ export function TrafficPanel({ values, traffic, loading, addMaskToSelection }: P
   const total = (traffic?.ports ?? []).reduce(
     (a, p) => a + (p.tx ?? 0) + (p.rx ?? 0), 0) / 2;
 
+  // The busiest single element on screen. Only stated for throughput, where it
+  // is a quantity; the utilisation equivalent is already the top legend row.
+  const peak = values.peak;
+
   return (
     <>
       <div className="toolbar-row window-picker">
-        <span className="muted">Utilisation</span>
+        <span className="muted">{spec.heading}</span>
+        <span className="muted"> · {spec.unit}</span>
         {loading && <span className="muted"> · updating…</span>}
       </div>
 
@@ -62,14 +112,14 @@ export function TrafficPanel({ values, traffic, loading, addMaskToSelection }: P
             </div>
           ) : (
             <>
-              {TRAFFIC_RAMP.map((color, bin) => (
+              {spec.ramp.map((color, bin) => (
                 <div
                   className="legend-item"
                   key={bin}
                   onClick={() => addMaskToSelection("bin", bin)}
                 >
                   <span className="swatch" style={{ background: color }} />
-                  {BIN_LABEL[bin]}
+                  {spec.labels[bin]}
                   <span className="stat-value">{hist[bin]}</span>
                 </div>
               ))}
@@ -111,20 +161,16 @@ export function TrafficPanel({ values, traffic, loading, addMaskToSelection }: P
       {cov && cov.ports_measured > 0 && (
         <p className="toolbar-note muted">
           <span className="stat-value">{gbps(total)}</span> Gbps across the fabric
+          {mask === "throughput" && peak > 0 && (
+            <> · busiest <span className="stat-value">{gbps(peak)}</span></>
+          )}
           {traffic?.cadence_s
             ? <> · collected every {Math.round(traffic.cadence_s)}s</>
             : null}
         </p>
       )}
 
-      {/* Utilisation is relative to each link's own rate, and saying so is not
-          decoration: the alternative reading -- that the colours are absolute
-          Gbps -- makes a saturated 25G link and an idle 200G one look like the
-          same fact. */}
-      <p className="toolbar-note muted">
-        A share of each link’s own line rate, not absolute Gbps. Ports on no
-        link have no rate to divide by and stay uncoloured.
-      </p>
+      <p className="toolbar-note muted">{spec.note}</p>
     </>
   );
 }

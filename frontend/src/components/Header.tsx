@@ -1,7 +1,10 @@
+import { useState } from "react";
 import type { FabricRow } from "../api/types";
 import type { GraphModel } from "../model/graph";
 import { useTime } from "../time/TimeContext";
-import { duration, stamp } from "../time/format";
+import { duration } from "../time/format";
+import { useFormat } from "../settings/SettingsContext";
+import { SettingsPanel } from "../settings/SettingsPanel";
 import { freshness } from "../time/freshness";
 import { defaultFor, MODE_LABEL, type Mode } from "../time/modes";
 import { MASKS, masksFor, type Mask, type ViewState } from "../view/mask";
@@ -18,6 +21,8 @@ interface Props {
 export function Header({ model, fabric, fabrics, onSelectFabric, view, setView }: Props) {
   const { resolved } = model;
   const { time, setTime } = useTime();
+  const { stamp } = useFormat();
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const { lagMs, incomplete } = freshness(resolved);
 
   // Sweeps are discrete, so the answer is almost never stamped exactly when it
@@ -122,6 +127,18 @@ export function Header({ model, fabric, fabrics, onSelectFabric, view, setView }
             · {lag} {isLive ? "old" : "earlier"}
           </span>
         )}
+      </div>
+      <div className="settings-anchor">
+        <button
+          className="settings-gear"
+          title="Settings"
+          aria-label="Settings"
+          aria-expanded={settingsOpen}
+          onClick={() => setSettingsOpen((v) => !v)}
+        >
+          ⚙
+        </button>
+        {settingsOpen && <SettingsPanel onClose={() => setSettingsOpen(false)} />}
       </div>
     </header>
   );

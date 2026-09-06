@@ -173,6 +173,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/fabrics/{fabric}/selection": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Selection
+         * @description What a set of selected elements adds up to, at one instant.
+         */
+        post: operations["selection_api_v1_fabrics__fabric__selection_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/fabrics/{fabric}/snapshots": {
         parameters: {
             query?: never;
@@ -515,6 +535,23 @@ export interface components {
             /** Type */
             type?: ("ca" | "switch" | "router") | null;
         };
+        /**
+         * LinkNote
+         * @description One link worth looking at, with the verdict's justification.
+         */
+        LinkNote: {
+            /**
+             * Health
+             * @enum {string}
+             */
+            health: "ok" | "degraded" | "down" | "unknown";
+            /** Id */
+            id: string;
+            /** Label */
+            label: string;
+            /** Reason */
+            reason?: string[];
+        };
         /** NodeDetail */
         NodeDetail: {
             /** Desc */
@@ -682,6 +719,24 @@ export interface components {
             unsupported?: ("symbol_error" | "link_error_recovery" | "link_downed" | "rcv_errors" | "rcv_remote_phys_errors" | "rcv_switch_relay_errors" | "xmit_discards" | "xmit_constraint_errors" | "rcv_constraint_errors" | "local_link_integrity" | "excessive_buffer_overrun" | "vl15_dropped" | "xmit_wait" | "qp1_dropped")[];
         };
         /**
+         * PortNote
+         * @description One port that contributed enough to be worth naming.
+         */
+        PortNote: {
+            /** Detail */
+            detail?: {
+                [key: string]: number;
+            };
+            /** Label */
+            label: string;
+            /** Node */
+            node: string;
+            /** Port */
+            port: number;
+            /** Value */
+            value: number;
+        };
+        /**
          * PortRate
          * @description One port's throughput over a trailing window, for a detail card.
          *
@@ -791,6 +846,159 @@ export interface components {
             /** Topology Hash */
             topology_hash: string;
         };
+        /** SelectionCounters */
+        SelectionCounters: {
+            coverage: components["schemas"]["SelectionCoverage"];
+            /** Top Ports */
+            top_ports?: components["schemas"]["PortNote"][];
+            /** Totals */
+            totals?: {
+                [key: string]: number;
+            };
+            window: components["schemas"]["CounterWindow"];
+        };
+        /**
+         * SelectionCounts
+         * @description What was asked for against what was found.
+         */
+        SelectionCounts: {
+            /** Links Found */
+            links_found: number;
+            /** Links Requested */
+            links_requested: number;
+            /** Missing */
+            missing?: string[];
+            /** Nodes Found */
+            nodes_found: number;
+            /** Nodes Requested */
+            nodes_requested: number;
+        };
+        /**
+         * SelectionCoverage
+         * @description How much of the selection the counter read actually saw.
+         */
+        SelectionCoverage: {
+            /** Ports Expected */
+            ports_expected: number;
+            /** Ports Measured */
+            ports_measured: number;
+            /** Ports No Data */
+            ports_no_data: number;
+            /** Ports Unusable */
+            ports_unusable: number;
+        };
+        /** SelectionLinks */
+        SelectionLinks: {
+            /**
+             * Capacity Gbps
+             * @default 0
+             */
+            capacity_gbps: number;
+            /** Degraded */
+            degraded?: components["schemas"]["LinkNote"][];
+            /** Health */
+            health?: components["schemas"]["Tallied"][];
+            /** Speeds */
+            speeds?: components["schemas"]["Tallied"][];
+            /** Total */
+            total: number;
+            /**
+             * Unrated
+             * @default 0
+             */
+            unrated: number;
+            /** Widths */
+            widths?: components["schemas"]["Tallied"][];
+        };
+        /** SelectionNodes */
+        SelectionNodes: {
+            /** Firmware */
+            firmware?: components["schemas"]["Tallied"][];
+            /** Health */
+            health?: components["schemas"]["Tallied"][];
+            /** Models */
+            models?: components["schemas"]["Tallied"][];
+            /** Ports Active */
+            ports_active: number;
+            /** Ports Inactive */
+            ports_inactive: number;
+            /** Ports Linked */
+            ports_linked: number;
+            /** Ports Total */
+            ports_total: number;
+            /** Total */
+            total: number;
+            /** Types */
+            types?: components["schemas"]["Tallied"][];
+            /** Vendors */
+            vendors?: components["schemas"]["Tallied"][];
+        };
+        /**
+         * SelectionRequest
+         * @description The body of a selection summary request.
+         */
+        SelectionRequest: {
+            /** At */
+            at?: string | null;
+            /** Counters Window */
+            counters_window?: number | null;
+            /** Links */
+            links?: string[];
+            /** Nodes */
+            nodes?: string[];
+            /**
+             * With Traffic
+             * @default false
+             */
+            with_traffic: boolean;
+        };
+        /** SelectionSummary */
+        SelectionSummary: {
+            counters?: components["schemas"]["SelectionCounters"] | null;
+            links: components["schemas"]["SelectionLinks"];
+            nodes: components["schemas"]["SelectionNodes"];
+            requested: components["schemas"]["SelectionCounts"];
+            resolved: components["schemas"]["Resolved"];
+            traffic?: components["schemas"]["SelectionTraffic"] | null;
+        };
+        /** SelectionTraffic */
+        SelectionTraffic: {
+            /** As Of */
+            as_of?: string | null;
+            /** Cadence S */
+            cadence_s?: number | null;
+            /**
+             * Capacity Gbps
+             * @default 0
+             */
+            capacity_gbps: number;
+            /** Peak Utilisation Pct */
+            peak_utilisation_pct?: number | null;
+            /**
+             * Ports Measured
+             * @default 0
+             */
+            ports_measured: number;
+            /**
+             * Ports No Data
+             * @default 0
+             */
+            ports_no_data: number;
+            /**
+             * Rx Gbps
+             * @default 0
+             */
+            rx_gbps: number;
+            /** Span S */
+            span_s?: number | null;
+            /** Top Ports */
+            top_ports?: components["schemas"]["PortNote"][];
+            /**
+             * Tx Gbps
+             * @default 0
+             */
+            tx_gbps: number;
+        };
         /** SnapshotRow */
         SnapshotRow: {
             /** Changed */
@@ -834,6 +1042,16 @@ export interface components {
             children: string[];
             /** Label */
             label: string;
+        };
+        /**
+         * Tallied
+         * @description One bar of a histogram.
+         */
+        Tallied: {
+            /** Count */
+            count: number;
+            /** Key */
+            key: string;
         };
         /** Topology */
         Topology: {
@@ -1167,6 +1385,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["NodeDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    selection_api_v1_fabrics__fabric__selection_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                fabric: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SelectionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SelectionSummary"];
                 };
             };
             /** @description Validation Error */

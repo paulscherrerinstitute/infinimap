@@ -757,6 +757,43 @@
         "title": "LinkEnd",
         "type": "object"
       },
+      "LinkNote": {
+        "description": "One link worth looking at, with the verdict's justification.",
+        "properties": {
+          "health": {
+            "enum": [
+              "ok",
+              "degraded",
+              "down",
+              "unknown"
+            ],
+            "title": "Health",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "reason": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Reason",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "health"
+        ],
+        "title": "LinkNote",
+        "type": "object"
+      },
       "NodeDetail": {
         "properties": {
           "desc": {
@@ -1379,6 +1416,42 @@
         "title": "PortErrorDelta",
         "type": "object"
       },
+      "PortNote": {
+        "description": "One port that contributed enough to be worth naming.",
+        "properties": {
+          "detail": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "title": "Detail",
+            "type": "object"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "node": {
+            "title": "Node",
+            "type": "string"
+          },
+          "port": {
+            "title": "Port",
+            "type": "integer"
+          },
+          "value": {
+            "title": "Value",
+            "type": "number"
+          }
+        },
+        "required": [
+          "node",
+          "label",
+          "port",
+          "value"
+        ],
+        "title": "PortNote",
+        "type": "object"
+      },
       "PortRate": {
         "description": "One port's throughput over a trailing window, for a detail card.\n\nSeparate from `PortTraffic`, the overlay's sparse wire shape. This one is\nalready attached to the port it describes, so it carries no identity and\nelides nothing -- an idle port on a card reads \"0.00 Gbps\" rather than\nvanishing the way it does from the overlay payload.",
         "properties": {
@@ -1551,6 +1624,416 @@
         "title": "Resolved",
         "type": "object"
       },
+      "SelectionCounters": {
+        "properties": {
+          "coverage": {
+            "$ref": "#/components/schemas/SelectionCoverage"
+          },
+          "top_ports": {
+            "items": {
+              "$ref": "#/components/schemas/PortNote"
+            },
+            "title": "Top Ports",
+            "type": "array"
+          },
+          "totals": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "propertyNames": {
+              "enum": [
+                "symbol_error",
+                "link_error_recovery",
+                "link_downed",
+                "rcv_errors",
+                "rcv_remote_phys_errors",
+                "rcv_switch_relay_errors",
+                "xmit_discards",
+                "xmit_constraint_errors",
+                "rcv_constraint_errors",
+                "local_link_integrity",
+                "excessive_buffer_overrun",
+                "vl15_dropped",
+                "xmit_wait",
+                "qp1_dropped"
+              ]
+            },
+            "title": "Totals",
+            "type": "object"
+          },
+          "window": {
+            "$ref": "#/components/schemas/CounterWindow"
+          }
+        },
+        "required": [
+          "window",
+          "coverage"
+        ],
+        "title": "SelectionCounters",
+        "type": "object"
+      },
+      "SelectionCounts": {
+        "description": "What was asked for against what was found.",
+        "properties": {
+          "links_found": {
+            "title": "Links Found",
+            "type": "integer"
+          },
+          "links_requested": {
+            "title": "Links Requested",
+            "type": "integer"
+          },
+          "missing": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Missing",
+            "type": "array"
+          },
+          "nodes_found": {
+            "title": "Nodes Found",
+            "type": "integer"
+          },
+          "nodes_requested": {
+            "title": "Nodes Requested",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "nodes_requested",
+          "links_requested",
+          "nodes_found",
+          "links_found"
+        ],
+        "title": "SelectionCounts",
+        "type": "object"
+      },
+      "SelectionCoverage": {
+        "description": "How much of the selection the counter read actually saw.",
+        "properties": {
+          "ports_expected": {
+            "title": "Ports Expected",
+            "type": "integer"
+          },
+          "ports_measured": {
+            "title": "Ports Measured",
+            "type": "integer"
+          },
+          "ports_no_data": {
+            "title": "Ports No Data",
+            "type": "integer"
+          },
+          "ports_unusable": {
+            "title": "Ports Unusable",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "ports_expected",
+          "ports_measured",
+          "ports_no_data",
+          "ports_unusable"
+        ],
+        "title": "SelectionCoverage",
+        "type": "object"
+      },
+      "SelectionLinks": {
+        "properties": {
+          "capacity_gbps": {
+            "default": 0.0,
+            "title": "Capacity Gbps",
+            "type": "number"
+          },
+          "degraded": {
+            "items": {
+              "$ref": "#/components/schemas/LinkNote"
+            },
+            "title": "Degraded",
+            "type": "array"
+          },
+          "health": {
+            "items": {
+              "$ref": "#/components/schemas/Tallied"
+            },
+            "title": "Health",
+            "type": "array"
+          },
+          "speeds": {
+            "items": {
+              "$ref": "#/components/schemas/Tallied"
+            },
+            "title": "Speeds",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          },
+          "unrated": {
+            "default": 0,
+            "title": "Unrated",
+            "type": "integer"
+          },
+          "widths": {
+            "items": {
+              "$ref": "#/components/schemas/Tallied"
+            },
+            "title": "Widths",
+            "type": "array"
+          }
+        },
+        "required": [
+          "total"
+        ],
+        "title": "SelectionLinks",
+        "type": "object"
+      },
+      "SelectionNodes": {
+        "properties": {
+          "firmware": {
+            "items": {
+              "$ref": "#/components/schemas/Tallied"
+            },
+            "title": "Firmware",
+            "type": "array"
+          },
+          "health": {
+            "items": {
+              "$ref": "#/components/schemas/Tallied"
+            },
+            "title": "Health",
+            "type": "array"
+          },
+          "models": {
+            "items": {
+              "$ref": "#/components/schemas/Tallied"
+            },
+            "title": "Models",
+            "type": "array"
+          },
+          "ports_active": {
+            "title": "Ports Active",
+            "type": "integer"
+          },
+          "ports_inactive": {
+            "title": "Ports Inactive",
+            "type": "integer"
+          },
+          "ports_linked": {
+            "title": "Ports Linked",
+            "type": "integer"
+          },
+          "ports_total": {
+            "title": "Ports Total",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          },
+          "types": {
+            "items": {
+              "$ref": "#/components/schemas/Tallied"
+            },
+            "title": "Types",
+            "type": "array"
+          },
+          "vendors": {
+            "items": {
+              "$ref": "#/components/schemas/Tallied"
+            },
+            "title": "Vendors",
+            "type": "array"
+          }
+        },
+        "required": [
+          "total",
+          "ports_total",
+          "ports_active",
+          "ports_inactive",
+          "ports_linked"
+        ],
+        "title": "SelectionNodes",
+        "type": "object"
+      },
+      "SelectionRequest": {
+        "description": "The body of a selection summary request.",
+        "properties": {
+          "at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "At"
+          },
+          "counters_window": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "maximum": 86400.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Counters Window"
+          },
+          "links": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Links",
+            "type": "array"
+          },
+          "nodes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Nodes",
+            "type": "array"
+          },
+          "with_traffic": {
+            "default": false,
+            "title": "With Traffic",
+            "type": "boolean"
+          }
+        },
+        "title": "SelectionRequest",
+        "type": "object"
+      },
+      "SelectionSummary": {
+        "properties": {
+          "counters": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SelectionCounters"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "links": {
+            "$ref": "#/components/schemas/SelectionLinks"
+          },
+          "nodes": {
+            "$ref": "#/components/schemas/SelectionNodes"
+          },
+          "requested": {
+            "$ref": "#/components/schemas/SelectionCounts"
+          },
+          "resolved": {
+            "$ref": "#/components/schemas/Resolved"
+          },
+          "traffic": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SelectionTraffic"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "resolved",
+          "requested",
+          "nodes",
+          "links"
+        ],
+        "title": "SelectionSummary",
+        "type": "object"
+      },
+      "SelectionTraffic": {
+        "properties": {
+          "as_of": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "As Of"
+          },
+          "cadence_s": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cadence S"
+          },
+          "capacity_gbps": {
+            "default": 0.0,
+            "title": "Capacity Gbps",
+            "type": "number"
+          },
+          "peak_utilisation_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Peak Utilisation Pct"
+          },
+          "ports_measured": {
+            "default": 0,
+            "title": "Ports Measured",
+            "type": "integer"
+          },
+          "ports_no_data": {
+            "default": 0,
+            "title": "Ports No Data",
+            "type": "integer"
+          },
+          "rx_gbps": {
+            "default": 0.0,
+            "title": "Rx Gbps",
+            "type": "number"
+          },
+          "span_s": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Span S"
+          },
+          "top_ports": {
+            "items": {
+              "$ref": "#/components/schemas/PortNote"
+            },
+            "title": "Top Ports",
+            "type": "array"
+          },
+          "tx_gbps": {
+            "default": 0.0,
+            "title": "Tx Gbps",
+            "type": "number"
+          }
+        },
+        "title": "SelectionTraffic",
+        "type": "object"
+      },
       "SnapshotRow": {
         "properties": {
           "changed": {
@@ -1657,6 +2140,25 @@
           "children"
         ],
         "title": "SystemGroup",
+        "type": "object"
+      },
+      "Tallied": {
+        "description": "One bar of a histogram.",
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "count"
+        ],
+        "title": "Tallied",
         "type": "object"
       },
       "Topology": {
@@ -2484,6 +2986,59 @@
           }
         },
         "summary": "Node",
+        "tags": [
+          "fabric"
+        ]
+      }
+    },
+    "/api/v1/fabrics/{fabric}/selection": {
+      "post": {
+        "description": "What a set of selected elements adds up to, at one instant.",
+        "operationId": "selection_api_v1_fabrics__fabric__selection_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "fabric",
+            "required": true,
+            "schema": {
+              "title": "Fabric",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SelectionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SelectionSummary"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Selection",
         "tags": [
           "fabric"
         ]

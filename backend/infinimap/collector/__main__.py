@@ -37,6 +37,9 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
     ap.add_argument("--dsn", help="PostgreSQL connection string")
     ap.add_argument("--fabric", help="fabric name (created if absent)")
     ap.add_argument("--interval", type=float, help="poll interval in seconds (loop mode)")
+    ap.add_argument("--query-timeout", type=float,
+                    help="seconds one saquery / ibqueryerrors invocation may "
+                         "take before it counts as an incomplete sweep")
     ap.add_argument("--subnet-prefix",
                     help="IB subnet prefix, e.g. 0xfe80000000000000 (first creation only)")
     ap.add_argument("-v", "--verbose", action="store_true", help="debug logging")
@@ -70,6 +73,8 @@ def _config_from(args: argparse.Namespace) -> Config:
         overrides["subnet_prefix"] = int(args.subnet_prefix, 0)
     if args.interval is not None:
         overrides["interval_s"] = args.interval
+    if args.query_timeout is not None:
+        overrides["query_timeout_s"] = args.query_timeout
     if args.from_dir:
         overrides["from_dir"] = args.from_dir
     return replace(base, **overrides) if overrides else base
@@ -79,15 +84,27 @@ def main(argv: list[str]) -> int:
     args = _parse_args(argv)
     # Log in UTC
     logging.Formatter.converter = time.gmtime
+    # INFO until the config is read, so the config loader's own warnings (an
+    # unknown key, say) are not swallowed by the level that config sets.
     logging.basicConfig(
         level=logging.DEBUG if args.verbose else logging.INFO,
         format="%(asctime)s %(levelname)s %(name)s %(message)s",
     )
     try:
-        return run(_config_from(args), once=args.once and not args.loop)
+        cfg = _config_from(args)
+        logging.getLogger().setLevel(_level(cfg.log_level, args.verbose))
+        return run(cfg, once=args.once and not args.loop)
     except (startup.SchemaMismatch, startup.ClockSkew) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
+
+
+def _level(name: str, verbose: bool) -> int:
+    """The configured level, unless -v was passed."""
+    if verbose:
+        return logging.DEBUG
+    return getattr(logging, name.upper(), None) if isinstance(
+        getattr(logging, name.upper(), None), int) else logging.INFO
 
 
 def console() -> int:

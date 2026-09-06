@@ -13,7 +13,8 @@ from .. import __version__
 from ..db import startup
 from .config import Config
 from .db import Database
-from .routes import counters, detail, diff, events, fabrics, topology
+from .routes import (counters, detail, diff, events, fabrics, selection,
+                     topology)
 from .web import mount_web
 
 log = logging.getLogger("infinimap.api")
@@ -50,13 +51,16 @@ def create_app(cfg: Config) -> FastAPI:
         app.add_middleware(
             CORSMiddleware,
             allow_origins=list(cfg.cors_origins),
-            allow_methods=["GET"],
+            # POST for /selection alone -- a selection of thousands of ids
+            # does not fit in a query string.
+            allow_methods=["GET", "POST"],
             allow_headers=["*"],
             # So a browser can read the validator and make conditional requests
             expose_headers=["ETag"],
         )
 
-    for module in (fabrics, topology, detail, events, diff, counters):
+    for module in (fabrics, topology, detail, events, diff, counters,
+                   selection):
         app.include_router(module.router, prefix=API_PREFIX, tags=["fabric"])
 
     @app.get("/healthz", include_in_schema=False)

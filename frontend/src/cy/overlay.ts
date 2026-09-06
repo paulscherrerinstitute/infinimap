@@ -9,7 +9,8 @@
 import type { Core } from "cytoscape";
 import type { OverlayValues } from "../model/counters";
 
-export type Overlay = "none" | "errors" | "congestion" | "traffic";
+export type Overlay =
+  | "none" | "errors" | "congestion" | "utilisation" | "throughput";
 
 /** Fixed decade thresholds: a value < ERROR_BINS[i] lands in bin i. Fixed
  *  rather than quantile-relative, so a colour means the same thing twice. */
@@ -24,8 +25,22 @@ export const ERROR_BINS: readonly number[] = [1, 10, 100, 1_000, 100_000];
  */
 export const CONGESTION_BINS: readonly number[] = [1, 100, 10_000, 100_000, 1_000_000];
 
-/** Utilisation percentages; the traffic scale is linear and relative. */
-export const TRAFFIC_BINS: readonly number[] = [0.5, 20, 40, 60, 80];
+/** Utilisation percentages; the utilisation scale is linear and relative. */
+export const UTILISATION_BINS: readonly number[] = [0.5, 20, 40, 60, 80];
+
+/**
+ * Absolute throughput, in Gbps. Fixed rather than quantile-relative for the
+ * same reason as ERROR_BINS: a colour has to mean the same thing on a quiet
+ * fabric as on a busy one.
+ *
+ * The boundaries sit BETWEEN the link generations rather than on round decades
+ * -- FDR ~54, EDR ~100, HDR ~200, NDR ~400 -- so a link genuinely moving a
+ * generation's worth of data lands in a band of its own.
+ *
+ * The first threshold is the server's own idle floor (IDLE_FLOOR_GBPS), so
+ * "omitted from the payload" and "bin 0" agree by construction.
+ */
+export const THROUGHPUT_BINS: readonly number[] = [0.01, 1, 10, 50, 100];
 
 export const BIN_COUNT = ERROR_BINS.length + 1; // 6, both scales
 
@@ -60,10 +75,22 @@ export function binCongestion(ticks: number, spanSeconds: number | null | undefi
 export function binUtilisation(pct: number | null | undefined): number | null {
   if (pct == null || Number.isNaN(pct)) return null;
   if (!(pct > 0)) return 0;
-  for (let i = 0; i < TRAFFIC_BINS.length; i++) {
-    if (pct < TRAFFIC_BINS[i]) return i;
+  for (let i = 0; i < UTILISATION_BINS.length; i++) {
+    if (pct < UTILISATION_BINS[i]) return i;
   }
-  return TRAFFIC_BINS.length;
+  return UTILISATION_BINS.length;
+}
+
+/**
+ * Absolute flow rate, in Gbps.
+ */
+export function binThroughput(gbps: number | null | undefined): number | null {
+  if (gbps == null || Number.isNaN(gbps)) return null;
+  if (!(gbps > 0)) return 0;
+  for (let i = 0; i < THROUGHPUT_BINS.length; i++) {
+    if (gbps < THROUGHPUT_BINS[i]) return i;
+  }
+  return THROUGHPUT_BINS.length;
 }
 
 /** One link's Gbps against its own line rate. */

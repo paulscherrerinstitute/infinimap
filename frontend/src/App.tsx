@@ -15,9 +15,10 @@ import { Toolbar } from "./components/Toolbar";
 import { LayoutPanel } from "./components/LayoutPanel";
 import { useLayouts } from "./layouts/useLayouts";
 import { ToastHost } from "./components/Toast";
-import { rollup, rollupTraffic } from "./model/counters";
+import { rollup, rollupThroughput, rollupTraffic } from "./model/counters";
 import {
-  applyOverlay, binCongestion, binErrors, binUtilisation, type BinOf,
+  applyOverlay, binCongestion, binErrors, binThroughput, binUtilisation,
+  type BinOf,
 } from "./cy/overlay";
 import {
   MASKS, countersFor, lookbackOf, maskFor, type MaskValue, type ViewState,
@@ -80,7 +81,12 @@ export default function App() {
 
   // Its own query on its own clock. `until` is the pinned instant or null, so
   // point mode reads the rate as it was then and stops polling.
-  const traffic = useTraffic(fabric ?? "", until, ready && overlay === "traffic");
+  //
+  // One query for both traffic masks: utilisation and throughput are two
+  // readings of the same per-port rates, so switching between them is a
+  // re-rollup in the browser and not a refetch.
+  const showsTraffic = overlay === "utilisation" || overlay === "throughput";
+  const traffic = useTraffic(fabric ?? "", until, ready && showsTraffic);
 
   const [selection, setSelection] = useState<SelectedItem[]>([]);
   const [filters, setFilters] = useState<Filters>({
@@ -131,8 +137,10 @@ export default function App() {
   // Traffic normalises to utilisation inside its rollup rather than binning on
   // Gbps, because the divisor belongs to a link -- see model/counters.ts.
   const values = useMemo(
-    () => (overlay === "traffic"
+    () => (overlay === "utilisation"
       ? rollupTraffic(traffic.data, model, view.rollup)
+      : overlay === "throughput"
+      ? rollupThroughput(traffic.data, model, view.rollup)
       : rollup(deltas.data, model, new Set(counters), view.rollup)),
     [overlay, traffic.data, deltas.data, model, counters, view.rollup],
   );
@@ -143,7 +151,8 @@ export default function App() {
   const span = deltas.data?.window.span_s ?? null;
   const binOf = useMemo<BinOf>(
     () => (overlay === "congestion" ? (v) => binCongestion(v, span)
-      : overlay === "traffic" ? binUtilisation
+      : overlay === "utilisation" ? binUtilisation
+      : overlay === "throughput" ? binThroughput
       : binErrors),
     [overlay, span],
   );
@@ -258,7 +267,7 @@ export default function App() {
                 deltas={deltas.data}
                 traffic={traffic.data}
                 countersLoading={
-                  overlay === "traffic" ? traffic.isFetching : deltas.isFetching
+                  showsTraffic ? traffic.isFetching : deltas.isFetching
                 }
               />
               <LayoutPanel layouts={layouts} model={model} cyRef={cyRef} />
@@ -282,7 +291,7 @@ export default function App() {
             // Only when the graph is coloured by it. The card's job here is to
             // explain the colour, and under any other mask it would be two
             // extra queries per open card for a number nobody is looking at.
-            withTraffic={overlay === "traffic"}
+            withTraffic={showsTraffic}
             selection={selection}
             onNavigate={focusInGraph}
             onDeselect={deselectInGraph}

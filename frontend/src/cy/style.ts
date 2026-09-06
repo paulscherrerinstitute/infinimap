@@ -1,17 +1,29 @@
 import type { StylesheetStyle } from "cytoscape";
 import {
-  CHANGE_COLOR, ERROR_RAMP, HEALTH_COLOR, TRAFFIC_RAMP, UNTRUSTED_COLOR,
+  CHANGE_COLOR, ERROR_RAMP, HEALTH_COLOR, LOAD_RAMP, THROUGHPUT_RAMP,
+  UNTRUSTED_COLOR,
 } from "./palette";
+import { DEFAULTS, type Settings } from "../settings/defaults";
 
 // Cytoscape stylesheet. Selectors read the lean element fields
 // (`type`, `health`, `status`) straight off element `data`.
+
+/** The 26x20 rectangle every switch-shaped node uses. */
+const RECT_RATIO = 20 / 26;
+
+/** `size` as a (width, height) pair for a rectangular node. */
+const rect = (size: number) => ({ width: size, height: size * RECT_RATIO });
+
+const fontFor = (size: number, base: number, baseSize: number): number =>
+  Math.max(6, Math.round((size / baseSize) * base * 10) / 10);
 
 /* One rule per (overlay, bin), generated rather than written out. */
 function overlayRules(): StylesheetStyle[] {
   const ramps = [
     ["errors", ERROR_RAMP],
-    ["congestion", TRAFFIC_RAMP],
-    ["traffic", TRAFFIC_RAMP],
+    ["congestion", LOAD_RAMP],
+    ["utilisation", LOAD_RAMP],
+    ["throughput", THROUGHPUT_RAMP],
   ] as const;
 
   const out: StylesheetStyle[] = [];
@@ -30,7 +42,10 @@ function overlayRules(): StylesheetStyle[] {
   return out;
 }
 
-export const stylesheet: StylesheetStyle[] = [
+export function buildStylesheet(settings: Settings = DEFAULTS): StylesheetStyle[] {
+  const sz = settings.size;
+  const labelMin = settings.labelMinPx;
+  return [
   // ---- nodes -------------------------------------------------------------
   {
     selector: "node",
@@ -45,34 +60,35 @@ export const stylesheet: StylesheetStyle[] = [
       "background-color": HEALTH_COLOR.ok,
       "border-width": 1,
       "border-color": "#0d1117",
-      width: 11,
-      height: 11,
+      width: sz.ca,
+      height: sz.ca,
       // hide labels once they'd render smaller than this (px) — declutters the
-      // overview; labels reappear as you zoom into a cluster.
-      "min-zoomed-font-size": 8,
+      // overview; labels reappear as you zoom into a cluster. 0 always shows.
+      "min-zoomed-font-size": labelMin,
       "z-index": 1,
     },
   },
   // shape by node kind. Switches are few and important, so their labels always show.
-  { selector: 'node[type="switch"]', style: { shape: "round-rectangle", width: 26, height: 20, "font-size": 8, "min-zoomed-font-size": 0 } },
+  { selector: 'node[type="switch"]', style: { shape: "round-rectangle", ...rect(sz.switch), "font-size": fontFor(sz.switch, 8, 26), "min-zoomed-font-size": 0 } },
   { selector: 'node[type="ca"]', style: { shape: "ellipse" } },
-  { selector: 'node[type="router"]', style: { shape: "diamond", width: 22, height: 22 } },
+  { selector: 'node[type="router"]', style: { shape: "diamond", width: sz.router, height: sz.router } },
   // fill by health rollup
   { selector: 'node[health="degraded"]', style: { "background-color": HEALTH_COLOR.degraded } },
   { selector: 'node[health="down"]', style: { "background-color": HEALTH_COLOR.down } },
   { selector: 'node[health="unknown"]', style: { "background-color": HEALTH_COLOR.unknown } },
   // ---- subnet managers ---------------------------------------------------
   {
+    // Any SM, whatever its state: always labelled, always on top. The two
+    // roles below then set their own size over this.
     selector: "node[?sm_role]",
-    style: { width: 20, height: 20, "min-zoomed-font-size": 0, "z-index": 3 },
+    style: { "min-zoomed-font-size": 0, "z-index": 3 },
   },
   {
     selector: 'node[sm_role="master"]',
     style: {
       "padding": "10px",
-      "shape": "round-rectangle", 
-      width: 26, 
-      height: 20,
+      "shape": "round-rectangle",
+      ...rect(sz.smMaster),
       "border-width": 3,
       "background-image": "url(/icons/crown.svg)",
       "background-fit": "none",
@@ -100,8 +116,7 @@ export const stylesheet: StylesheetStyle[] = [
     selector: 'node[sm_role="standby"]',
     style: {
       "padding": "5px",
-      width: 26,
-      height: 20,
+      ...rect(sz.smStandby),
       "border-width": 2,
       "background-image": "url(/icons/clock.svg)",
       "background-fit": "none",
@@ -132,7 +147,7 @@ export const stylesheet: StylesheetStyle[] = [
   {
     selector: "edge",
     style: {
-      width: 1.5,
+      width: sz.edge,
       "line-color": HEALTH_COLOR.ok,
       // bezier (not straight) so parallel links between the same switch pair fan
       // out into separate arcs instead of stacking pixel-on-pixel — otherwise two
@@ -143,8 +158,8 @@ export const stylesheet: StylesheetStyle[] = [
       "z-index": 0,
     },
   },
-  { selector: 'edge[health="degraded"]', style: { "line-color": HEALTH_COLOR.degraded, width: 2.5, opacity: 0.95, "z-index": 2 } },
-  { selector: 'edge[health="down"]', style: { "line-color": HEALTH_COLOR.down, width: 2.5, opacity: 0.95, "line-style": "dashed", "z-index": 2 } },
+  { selector: 'edge[health="degraded"]', style: { "line-color": HEALTH_COLOR.degraded, width: sz.edge * 1.7, opacity: 0.95, "z-index": 2 } },
+  { selector: 'edge[health="down"]', style: { "line-color": HEALTH_COLOR.down, width: sz.edge * 1.7, opacity: 0.95, "line-style": "dashed", "z-index": 2 } },
   { selector: 'edge[health="unknown"]', style: { "line-color": HEALTH_COLOR.unknown, "line-style": "dotted" } },
 
   // ---- compare mode ------------------------------------------------------
@@ -156,10 +171,10 @@ export const stylesheet: StylesheetStyle[] = [
   { selector: 'edge[mode="compare"]', style: { "line-color": CHANGE_COLOR.unchanged, "line-style": "solid", opacity: 0.55 } },
 
   { selector: 'node[mode="compare"][change="added"]', style: { "background-color": CHANGE_COLOR.added } },
-  { selector: 'edge[mode="compare"][change="added"]', style: { "line-color": CHANGE_COLOR.added, width: 2.5, opacity: 0.95, "z-index": 3 } },
+  { selector: 'edge[mode="compare"][change="added"]', style: { "line-color": CHANGE_COLOR.added, width: sz.edge * 1.7, opacity: 0.95, "z-index": 3 } },
 
   { selector: 'node[mode="compare"][change="modified"]', style: { "background-color": CHANGE_COLOR.modified } },
-  { selector: 'edge[mode="compare"][change="modified"]', style: { "line-color": CHANGE_COLOR.modified, width: 2.5, opacity: 0.95, "z-index": 3 } },
+  { selector: 'edge[mode="compare"][change="modified"]', style: { "line-color": CHANGE_COLOR.modified, width: sz.edge * 1.7, opacity: 0.95, "z-index": 3 } },
 
   // Removed elements are ghosts: they exist at `since` and not at `until`, so
   // they are drawn to show the hole rather than to be read as present.
@@ -175,11 +190,11 @@ export const stylesheet: StylesheetStyle[] = [
   },
   {
     selector: 'edge[mode="compare"][change="removed"]',
-    style: { "line-color": CHANGE_COLOR.removed, "line-style": "dashed", width: 2.5, opacity: 0.8, "z-index": 3 },
+    style: { "line-color": CHANGE_COLOR.removed, "line-style": "dashed", width: sz.edge * 1.7, opacity: 0.8, "z-index": 3 },
   },
 
-  { selector: 'edge[mode="compare"][churn > 0]', style: { width: 3, opacity: 0.9, "z-index": 4 } },
-  { selector: 'edge[mode="compare"][churn >= 20]', style: { width: 5, "z-index": 5 } },
+  { selector: 'edge[mode="compare"][churn > 0]', style: { width: sz.edge * 2, opacity: 0.9, "z-index": 4 } },
+  { selector: 'edge[mode="compare"][churn >= 20]', style: { width: sz.edge * 3.3, "z-index": 5 } },
   { selector: 'node[mode="compare"][churn > 0]', style: { "border-width": 2, "border-color": "#e6edf3" } },
 
   // ---- counter overlays --------------------------------------------------
@@ -230,9 +245,14 @@ export const stylesheet: StylesheetStyle[] = [
     selector: "edge:selected",
     style: {
       "line-color": "#58a6ff",
-      width: 3.5,
+      width: sz.edge * 2.3,
       opacity: 1,
       "z-index": 20,
     },
   },
-];
+  ];
+}
+
+/** The default-settings stylesheet, for anything that builds a core before the
+ *  provider is reachable. GraphView re-applies the real one on mount. */
+export const stylesheet: StylesheetStyle[] = buildStylesheet();

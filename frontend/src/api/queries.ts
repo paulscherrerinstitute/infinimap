@@ -10,7 +10,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import {
   getDiff, getErrorDeltas, getEvents, getHead, getLinkDetail, getNodeDetail,
-  getTraffic,
+  getSelectionSummary, getTraffic,
   getSnapshots, getTopology, listFabrics,
 } from "./client";
 import type { Instant } from "./types";
@@ -18,10 +18,21 @@ import type { Instant } from "./types";
 /** Milliseconds. A historical answer is fixed; a live one is refetched. */
 const forever = (at: Instant) => (at === null ? 0 : Infinity);
 
-// TODO: THESE SHOULD BE CONFIGURABLE (SOME SORT OF CONFIG FILE)
-const POLL_MS = 30_000;
-const COUNTER_POLL_MS = 60_000;
-const TRAFFIC_POLL_MS = 5_000;
+/**
+ * How often each family of queries re-asks. User-settable -- see
+ * `settings/defaults.ts`.
+ */
+let POLL_MS = 30_000;
+let COUNTER_POLL_MS = 60_000;
+let TRAFFIC_POLL_MS = 5_000;
+
+export function setPolling(p: {
+  topologyMs: number; countersMs: number; trafficMs: number;
+}): void {
+  POLL_MS = p.topologyMs;
+  COUNTER_POLL_MS = p.countersMs;
+  TRAFFIC_POLL_MS = p.trafficMs;
+}
 
 /**
  * How often an open card re-asks. A card carrying traffic follows the graph's
@@ -58,7 +69,29 @@ export const keys = {
     ["counters", "errors", fabric, since, until] as const,
   traffic: (fabric: string, at: Instant) =>
     ["counters", "traffic", fabric, at] as const,
+  // A DIGEST of the id set, not the ids. react-query hashes keys with
+  // JSON.stringify, and a key holding five hundred link ids stringifies
+  // ~20 KB on every render of the panel that owns it.
+  selection: (fabric: string, ids: string, at: Instant, win?: number,
+              traffic?: boolean) =>
+    ["selection", fabric, ids, at, win ?? null, !!traffic] as const,
 };
+
+/**
+ * A stable, cheap digest of a set of ids.
+ */
+export function digest(ids: readonly string[]): string {
+  let h = 0x811c9dc5;
+  for (const id of [...ids].sort()) {
+    for (let i = 0; i < id.length; i++) {
+      h ^= id.charCodeAt(i);
+      h = Math.imul(h, 0x01000193);
+    }
+    h ^= 0x2c; // a separator, so ["ab","c"] and ["a","bc"] differ
+    h = Math.imul(h, 0x01000193);
+  }
+  return `${ids.length}:${(h >>> 0).toString(36)}`;
+}
 
 // ---- fabrics --------------------------------------------------------------
 
@@ -196,5 +229,29 @@ export function useErrorDeltas(fabric: string, since: string | null,
     enabled: enabled && since !== null,
     staleTime: forever(until),
     refetchInterval: until === null ? COUNTER_POLL_MS : false,
+  });
+}
+
+// ---- selection ------------------------------------------------------------
+
+/**
+ * What a whole selection adds up to.
+ */
+export function useSelectionSummary(
+  fabric: string, nodes: string[], links: string[], at: Instant,
+  countersWindow?: number, withTraffic = false, enabled = true,
+) {
+  const ids = digest([...nodes, ...links]);
+  return useQuery({
+    queryKey: keys.selection(fabric, ids, at, countersWindow, withTraffic),
+    queryFn: ({ signal }) =>
+      getSelectionSummary(fabric, {
+        nodes, links, at,
+        counters_window: countersWindow ?? null,
+        with_traffic: withTraffic,
+      }, signal),
+    enabled: enabled && nodes.length + links.length > 0,
+    staleTime: forever(at),
+    refetchInterval: live(at),
   });
 }

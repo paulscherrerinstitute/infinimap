@@ -4,7 +4,7 @@ import { applyPositions, capturePositions } from "../cy/positions";
 import type { SavedLayout } from "../layouts/store";
 import type { useLayouts } from "../layouts/useLayouts";
 import type { GraphModel } from "../model/graph";
-import { stamp } from "../time/format";
+import { useFormat } from "../settings/SettingsContext";
 import { usePulse } from "../usePulse";
 import { Toast } from "./Toast";
 
@@ -127,6 +127,7 @@ function LayoutRow({
   onRemove: () => void;
 }) {
   const ref = usePulse<HTMLLIElement>(savedNonce, SAVED_PULSE);
+  const { stamp } = useFormat();
 
   return (
     <li ref={ref} className={`layout-item${active ? " active" : ""}`}>

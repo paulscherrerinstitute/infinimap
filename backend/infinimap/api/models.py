@@ -454,6 +454,147 @@ class TrafficRates(BaseModel):
     ports: list[PortTraffic]
 
 
+# ---- selection summary ---------------------------------------------------
+
+class Tallied(BaseModel):
+    """One bar of a histogram."""
+
+    key: str
+    count: int
+
+
+class SelectionCounts(BaseModel):
+    """What was asked for against what was found."""
+
+    nodes_requested: int
+    links_requested: int
+    nodes_found: int
+    links_found: int
+    missing: list[str] = Field(default_factory=list)
+    """Ids that resolved to nothing at this instant. `*_requested` minus 
+    `*_found` is the true count."""
+
+
+class SelectionNodes(BaseModel):
+    total: int
+
+    ports_total: int
+    """Ports recorded on the selected nodes, which is not `sum(num_ports)`:
+    that is what the hardware has, this is what the sweep saw."""
+    ports_active: int
+    ports_inactive: int
+    ports_linked: int
+    """In a link at this instant. The difference from `ports_total` is the
+    fabric's spare capacity -- and switch port 0, which never has a cable."""
+
+    health: list[Tallied] = Field(default_factory=list)
+    types: list[Tallied] = Field(default_factory=list)
+    firmware: list[Tallied] = Field(default_factory=list)
+    """`fw_version` histogram."""
+    vendors: list[Tallied] = Field(default_factory=list)
+    models: list[Tallied] = Field(default_factory=list)
+
+
+class LinkNote(BaseModel):
+    """One link worth looking at, with the verdict's justification."""
+
+    id: str
+    label: str
+    """`nodeA:port <-> nodeB:port`, using display-name overrides."""
+    health: Health
+    reason: list[str] = Field(default_factory=list)
+
+
+class SelectionLinks(BaseModel):
+    total: int
+    health: list[Tallied] = Field(default_factory=list)
+    speeds: list[Tallied] = Field(default_factory=list)
+    widths: list[Tallied] = Field(default_factory=list)
+    capacity_gbps: float = 0.0
+    """Summed line rate of the selected links. Links whose rate could not be
+    decoded contribute nothing and are counted in `unrated`."""
+    unrated: int = 0
+    degraded: list[LinkNote] = Field(default_factory=list)
+    """Down and degraded links, worst first, capped."""
+
+
+class SelectionCoverage(BaseModel):
+    """How much of the selection the counter read actually saw."""
+
+    ports_expected: int
+    ports_measured: int
+    ports_no_data: int
+    """No reading bounded the window. Unpolled, not zero."""
+    ports_unusable: int
+    """A reading, but no delta could be derived -- no baseline, or a counter
+    went backwards."""
+
+
+class PortNote(BaseModel):
+    """One port that contributed enough to be worth naming."""
+
+    node: str
+    label: str
+    port: int
+    value: float
+    """Whatever the enclosing block ranks by: summed errors, or Gbps."""
+    detail: dict[str, float] = Field(default_factory=dict)
+    """The breakdown behind `value` -- counter name to delta, or tx/rx."""
+
+
+class SelectionCounters(BaseModel):
+    window: CounterWindow
+    coverage: SelectionCoverage
+    totals: dict[CounterName, int] = Field(default_factory=dict)
+    """Summed over every port in the selection. Sparse: a counter that did not
+    move anywhere is absent."""
+    top_ports: list[PortNote] = Field(default_factory=list)
+    """Worst first, capped."""
+
+
+class SelectionTraffic(BaseModel):
+    as_of: datetime | None = None
+    span_s: float | None = None
+    cadence_s: float | None = None
+
+    tx_gbps: float = 0.0
+    rx_gbps: float = 0.0
+    """Summed over the selected PORTS, and deliberately NOT halved."""
+    capacity_gbps: float = 0.0
+    """The selected LINKS' summed line rate, repeated from `SelectionLinks` so
+    a client rendering only this block can still state a percentage."""
+    peak_utilisation_pct: float | None = None
+    """The busiest single port, as a share of its own link's rate. None when no
+    selected port sits on a link with a decodable rate."""
+
+    ports_measured: int = 0
+    ports_no_data: int = 0
+    """No rate could be stated. Folds "unpolled" and "a byte counter wrapped"
+    together."""
+
+    top_ports: list[PortNote] = Field(default_factory=list)
+
+
+class SelectionRequest(BaseModel):
+    """The body of a selection summary request."""
+
+    nodes: list[str] = Field(default_factory=list)
+    links: list[str] = Field(default_factory=list)
+    at: datetime | None = None
+    counters_window: float | None = Field(default=None, gt=0, le=86_400)
+    """Seconds of counter history to summarise. Omit for no counters."""
+    with_traffic: bool = False
+
+
+class SelectionSummary(BaseModel):
+    resolved: Resolved
+    requested: SelectionCounts
+    nodes: SelectionNodes
+    links: SelectionLinks
+    counters: SelectionCounters | None = None
+    traffic: SelectionTraffic | None = None
+
+
 class FabricRow(BaseModel):
     fabric_id: int
     name: str

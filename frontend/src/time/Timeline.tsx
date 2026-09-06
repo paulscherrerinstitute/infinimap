@@ -16,7 +16,7 @@ import { useHead, useSnapshots } from "../api/queries";
 import type { GraphModel } from "../model/graph";
 import { useTime } from "./TimeContext";
 import { targetable, toSweeps, stepTarget } from "./changes";
-import { axisLabel, stamp } from "./format";
+import { useFormat } from "../settings/SettingsContext";
 import { handlesOf, jumpTo, moveHandle, type Grip } from "./handles";
 import { instantAt } from "./instant";
 import { instantOf, type TimeState } from "./state";
@@ -159,7 +159,13 @@ export function Timeline({ fabric, model, onMetrics }: Props) {
   // collection was struggling - but they are not places you can go.
   const targets = useMemo(() => targetable(sweeps), [sweeps]);
 
-  const axis = useMemo(() => ticks(win, width), [win, width]);
+  // Zone-aware: the labels are written in the display zone, so the ticks have
+  // to be aligned in it too.
+  const { stamp, axisLabel, offsetAt } = useFormat();
+  const axis = useMemo(
+    () => ticks(win, width, offsetAt(win.to)),
+    [win, width, offsetAt],
+  );
   const cols = useMemo(() => columns(sweeps, win, width), [sweeps, win, width]);
 
   // ---- committing -------------------------------------------------------

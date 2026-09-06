@@ -1,35 +1,52 @@
 # infinimap collector configuration EXAMPLE.
+#
+# Settings resolve: command-line flag -> environment -> this file -> built-in
+# default.
+#
+# Every setting below can also come from the environment, which OVERRIDES this
+# file.
 
 # PostgreSQL libpq connection string.
-# default: "postgresql:///infinimap"
+# The collector's role may INSERT and UPDATE but not DELETE.
+# env: INFINIMAP_DSN            default: "postgresql:///infinimap"
 dsn = "postgresql:///infinimap"
 
 # Logical fabric name. Resolved to a fabric_id, created on first sight.
-# default: "default"
+# The API serves whatever names appear here; two collectors writing different
+# names to one database give you two fabrics in the UI's picker.
+# env: INFINIMAP_FABRIC         default: "default"
 fabric = "default"
 
-# IB subnet prefix, stamped on the fabric row at first creation only.
-# Leave commented to store no prefix (the default).
+# IB subnet prefix, stamped on the fabric row at FIRST CREATION ONLY -- setting
+# it later changes nothing, because the row already exists.
+# env: INFINIMAP_SUBNET_PREFIX  default: none
 # subnet_prefix = "0xfe80000000000000"
 
-# Topology poll cadence in seconds (loop mode). default: 300
+# Topology + error cycle cadence in seconds.
+# env: INFINIMAP_INTERVAL       default: 300
 interval_s = 300
 
-# Read the three records from a fixture directory instead of live saquery. Leave
-# commented for production (live saquery). default: unset
-# from_dir = "../test_data/data"
-
-# Traffic sweep cadence in seconds. A separate, cheaper poll than the topology
-# cycle above - ibqueryerrors --counters reports every port unconditionally, so
-# it needs no port universe and can run far more often.
-# default: 30
+# Traffic sweep cadence in seconds.
+# env: INFINIMAP_TRAFFIC_INTERVAL       default: 30
 # traffic_interval_s = 30
+
+# Seconds one `saquery` or `ibqueryerrors` invocation may take. Per invocation,
+# not for the whole cycle. Raise this on a large or a sick fabric. 
+# env: INFINIMAP_QUERY_TIMEOUT  default: 120
+# query_timeout_s = 120
 
 # Refuse to start if this host's clock differs from the database's by more than
 # this many seconds. 0 disables the check.
-# default: 5
+# env: INFINIMAP_MAX_CLOCK_SKEW default: 5
 # max_clock_skew_s = 5
 
-# Every setting above can also come from the environment, which overrides this
-# file: INFINIMAP_DSN, INFINIMAP_FABRIC, INFINIMAP_INTERVAL,
-# INFINIMAP_TRAFFIC_INTERVAL, INFINIMAP_MAX_CLOCK_SKEW.
+# Read the tool output from a fixture directory instead of running saquery.
+# For development and replay only. Still needs a database to write to; it only
+# changes where the records are read from.
+# env: INFINIMAP_FROM_DIR       default: unset (live saquery)
+# from_dir = "../test_data/data"
+
+# Root logger level: debug, info, warning, error, critical.
+# `-v` on the command line forces debug and beats this.
+# env: INFINIMAP_LOG_LEVEL      default: "info"
+# log_level = "info"

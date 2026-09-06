@@ -16,6 +16,7 @@ import type { UseQueryResult } from "@tanstack/react-query";
 import type { Topology } from "../api/types";
 import { Toast } from "../components/Toast";
 import { stamp } from "./format";
+import { useZone } from "../settings/SettingsContext";
 
 /** How long to display each toast, in milliseconds. */
 const MS = 15000;
@@ -28,6 +29,7 @@ type Seen = { snapshotId: number; hash: string };
  */
 export function usePollNotice(query: UseQueryResult<Topology>, live: boolean): void {
   const seen = useRef<Seen | null>(null);
+  const zone = useZone();
 
   // Entering or leaving live mode restarts the sequence: the first fetch that
   // follows is a load, not a poll, and should pass silently.
@@ -44,7 +46,7 @@ export function usePollNotice(query: UseQueryResult<Topology>, live: boolean): v
     seen.current = { snapshotId: snapshot_id, hash: topology_hash };
     if (!previous) return; // first answer in this mode
 
-    const sweep = stamp(collected_at);
+    const sweep = stamp(collected_at, zone);
     if (previous.hash !== topology_hash) {
       Toast.ok("Fabric changed", `sweep ${sweep}`, MS);
     } else if (previous.snapshotId !== snapshot_id) {
@@ -54,7 +56,7 @@ export function usePollNotice(query: UseQueryResult<Topology>, live: boolean): v
     }
     // `data` is read, not depended on: a poll that changes nothing leaves it
     // referentially identical, and that poll is exactly what this reports.
-  }, [dataUpdatedAt, live]);
+  }, [dataUpdatedAt, live, zone]);
 
   const { error, errorUpdatedAt } = query;
   useEffect(() => {

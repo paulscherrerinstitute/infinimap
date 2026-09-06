@@ -123,14 +123,20 @@ export interface Tick {
   x: number;
 }
 
-/** Labelled positions along the axis, never closer together than a label is
- *  wide. Aligned to the step so they land on round times. */
-export function ticks(w: Win, width: number): { step: number; ticks: Tick[] } {
+/**
+ * Labelled positions along the axis, never closer together than a label is
+ * wide. Aligned to the step so they land on round times.
+ *
+ * `offsetMs` is the display zone's offset from UTC.
+ */
+export function ticks(w: Win, width: number,
+                      offsetMs = 0): { step: number; ticks: Tick[] } {
   const wanted = (MIN_TICK_PX / Math.max(width, 1)) * span(w);
   const step = STEPS.find((s) => s >= wanted) ?? STEPS[STEPS.length - 1];
 
   const out: Tick[] = [];
-  for (let t = Math.ceil(w.from / step) * step; t <= w.to; t += step) {
+  const first = Math.ceil((w.from + offsetMs) / step) * step - offsetMs;
+  for (let t = first; t <= w.to; t += step) {
     out.push({ at: t, x: toX(t, w, width) });
   }
   return { step, ticks: out };

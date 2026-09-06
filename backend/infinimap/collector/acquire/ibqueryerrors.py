@@ -14,7 +14,7 @@ to this one.
 
 from __future__ import annotations
 
-from .result import QueryResult, read_fixture, run_tool
+from .result import (DEFAULT_TIMEOUT_S, QueryResult, read_fixture, run_tool)
 
 TOOL = "ibqueryerrors"
 
@@ -31,16 +31,19 @@ def is_clean(result: QueryResult) -> bool:
     return not result.empty and _SUMMARY in result.text
 
 
-def collect(from_dir: str | None) -> QueryResult:
+def collect(from_dir: str | None,
+            timeout_s: float = DEFAULT_TIMEOUT_S) -> QueryResult:
     """One dump. Unlike saquery there is nothing to iterate: a single invocation
     covers the whole fabric."""
     if from_dir is None:
-        return run_tool(["sudo", TOOL], TOOL)
+        return run_tool(["sudo", TOOL], TOOL, timeout_s=timeout_s)
     return read_fixture(from_dir, TOOL)
 
 
-def collect_counters(from_dir: str | None) -> QueryResult:
+def collect_counters(from_dir: str | None,
+                     timeout_s: float = DEFAULT_TIMEOUT_S) -> QueryResult:
     """One `--counters` dump: the four traffic counters for every port."""
     if from_dir is None:
-        return run_tool(["sudo", TOOL, "--counters"], TOOL_COUNTERS)
+        return run_tool(["sudo", TOOL, "--counters"], TOOL_COUNTERS,
+                        timeout_s=timeout_s)
     return read_fixture(from_dir, TOOL_COUNTERS)

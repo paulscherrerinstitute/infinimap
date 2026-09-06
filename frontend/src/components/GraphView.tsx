@@ -4,7 +4,9 @@ import type { Core } from "cytoscape";
 import type { SelectedItem } from "../api/types";
 import type { GraphModel } from "../model/graph";
 import { registerLayouts } from "../cy/adapter";
-import { stylesheet } from "../cy/style";
+import { buildStylesheet } from "../cy/style";
+import { setWheelSensitivity } from "../cy/wheel";
+import { useSettings } from "../settings/SettingsContext";
 import { applyFilters, type Filters } from "../cy/filters";
 import { applyPositions, placeNewcomers } from "../cy/positions";
 import { reconcile } from "../cy/reconcile";
@@ -43,6 +45,13 @@ export function GraphView({
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [menu, setMenu] = useState<Menu>(null);
+  const { settings } = useSettings();
+
+  // The mount effect must build with the CURRENT settings but must not re-run
+  // when they change -- a rebuilt core loses positions, selection and collapse
+  // state. The two effects below apply changes to the live core instead.
+  const settingsRef = useRef(settings);
+  settingsRef.current = settings;
 
   // The reconcile effect re-applies filters to elements it has just added, but
   // must not re-run when a filter toggles: that is a class change, not a graph
@@ -68,9 +77,9 @@ export function GraphView({
     const cy = cytoscape({
       container,
       elements: [],
-      style: stylesheet,
+      style: buildStylesheet(settingsRef.current),
       layout: { name: "preset" }, // nothing to arrange yet
-      wheelSensitivity: 2,
+      wheelSensitivity: settingsRef.current.scrollWeight,
       minZoom: 0.05,
       maxZoom: 4,
       // "single": a plain tap replaces the selection; ctrl/shift/cmd-tap and
@@ -196,6 +205,19 @@ export function GraphView({
     // the core, so it has to see the finished graph.
     onReconciledRef.current?.();
   }, [model, cyRef, savedPositions]);
+
+  // Element sizes changed. `cy.style()` recomputes appearance and touches
+  // nothing else -- elements, positions, selection and collapse all survive,
+  // which is why this is a style swap rather than a rebuild.
+  useEffect(() => {
+    cyRef.current?.style(buildStylesheet(settingsRef.current));
+  }, [settings.size, settings.labelMinPx, cyRef]);
+
+  // Zoom sensitivity changed. See cy/wheel.ts for why this is a private write
+  // rather than a documented setter.
+  useEffect(() => {
+    setWheelSensitivity(cyRef.current, settings.scrollWeight);
+  }, [settings.scrollWeight, cyRef]);
 
   // Selection highlight is supplied entirely by the native `:selected` style —
   // no React-driven class needed.

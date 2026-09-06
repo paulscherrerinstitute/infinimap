@@ -11,7 +11,7 @@ import type { OverlayValues } from "../model/counters";
 import { COUNTER_GROUPS } from "../model/counters";
 import { binCongestion, binErrors } from "../cy/overlay";
 import {
-  COUNTER_LABEL, ERROR_BIN_LABEL, ERROR_RAMP, TRAFFIC_RAMP, UNTRUSTED_COLOR,
+  COUNTER_LABEL, ERROR_BIN_LABEL, ERROR_RAMP, LOAD_RAMP, UNTRUSTED_COLOR,
   UNTRUSTED_LABEL,
 } from "../cy/palette";
 import {
@@ -46,7 +46,7 @@ export function CountersPanel({
   view, setView, values, deltas, loading, addMaskToSelection,
 }: Props) {
   const congestion = view.mask === "congestion";
-  const ramp = congestion ? TRAFFIC_RAMP : ERROR_RAMP;
+  const ramp = congestion ? LOAD_RAMP : ERROR_RAMP;
   const span = deltas?.window.span_s ?? null;
 
   // Histogram over links, which is the unit these counters are about.

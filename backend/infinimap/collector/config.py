@@ -6,10 +6,13 @@ __main__ applies the layers.
 
 from __future__ import annotations
 
+import logging
 import os
 import tomllib
 from dataclasses import dataclass, replace
 from pathlib import Path
+
+log = logging.getLogger("infinimap.collector")
 
 # Where __main__ looks when no --config is given. A file here is optional: if it
 # is absent the built-in defaults below apply and CLI flags can still supply
@@ -23,9 +26,10 @@ _DEFAULT_INTERVAL_S = 300.0
 # collector stamps the history from its own clock, so skew here is written 
 # down. 0 disables the check.
 _DEFAULT_MAX_CLOCK_SKEW_S = 5.0
-# Traffic is a separate sweep on a separate thread; see daemon.traffic_loop.
-# 5s is what the volume figures in sql/003_counters.sql assume.
+# Traffic is a separate sweep on a separate thread.
 _DEFAULT_TRAFFIC_INTERVAL_S = 30.0
+# How long one saquery / ibqueryerrors invocation may take.
+_DEFAULT_QUERY_TIMEOUT_S = 120.0
 
 
 @dataclass(frozen=True)
@@ -37,8 +41,12 @@ class Config:
     traffic_interval_s: float = _DEFAULT_TRAFFIC_INTERVAL_S
     
     max_clock_skew_s: float = _DEFAULT_MAX_CLOCK_SKEW_S  # 0 disables the check
+    query_timeout_s: float = _DEFAULT_QUERY_TIMEOUT_S
 
     from_dir: str | None = None    # For testing, collect from a directory of saquery fixture files instead of live
+
+    # Root logger level. `-v` still wins, being the innermost layer.
+    log_level: str = "info"
 
     @property
     def live(self) -> bool:
@@ -64,8 +72,25 @@ def _coerce_prefix(raw: object) -> int | None:
     raise TypeError(f"subnet_prefix must be a string or int, got {type(raw).__name__}")
 
 
-def from_mapping(data: dict[str, object]) -> Config:
+#: Every key `from_mapping` understands, for the unknown-key warning below.
+KNOWN_KEYS = frozenset({
+    "dsn", "fabric", "subnet_prefix", "interval_s", "traffic_interval_s",
+    "max_clock_skew_s", "query_timeout_s", "from_dir", "log_level",
+})
+
+
+def _warn_unknown(data: dict[str, object], where: str) -> None:
+    """Name any key this loader will ignore."""
+    unknown = sorted(set(data) - KNOWN_KEYS)
+    if unknown:
+        log.warning("unknown key(s) in %s: %s (known: %s)",
+                    where, ", ".join(unknown), ", ".join(sorted(KNOWN_KEYS)))
+
+
+def from_mapping(data: dict[str, object],
+                 where: str = "collector.toml") -> Config:
     """Build a Config from a parsed TOML mapping, defaulting any absent key."""
+    _warn_unknown(data, where)
     return Config(
         dsn=str(data.get("dsn", _DEFAULT_DSN)),
         fabric_name=str(data.get("fabric", _DEFAULT_FABRIC)),
@@ -73,7 +98,9 @@ def from_mapping(data: dict[str, object]) -> Config:
         interval_s=float(data.get("interval_s", _DEFAULT_INTERVAL_S)),  # type: ignore[arg-type]
         traffic_interval_s=float(data.get("traffic_interval_s", _DEFAULT_TRAFFIC_INTERVAL_S)),  # type: ignore[arg-type]
         max_clock_skew_s=float(data.get("max_clock_skew_s", _DEFAULT_MAX_CLOCK_SKEW_S)),  # type: ignore[arg-type]
+        query_timeout_s=float(data.get("query_timeout_s", _DEFAULT_QUERY_TIMEOUT_S)),  # type: ignore[arg-type]
         from_dir=(str(data["from_dir"]) if data.get("from_dir") else None),
+        log_level=str(data.get("log_level", "info")),
     )
 
 
@@ -84,6 +111,10 @@ ENV_VARS = {
     "INFINIMAP_INTERVAL": "interval_s",
     "INFINIMAP_TRAFFIC_INTERVAL": "traffic_interval_s",
     "INFINIMAP_MAX_CLOCK_SKEW": "max_clock_skew_s",
+    "INFINIMAP_QUERY_TIMEOUT": "query_timeout_s",
+    "INFINIMAP_SUBNET_PREFIX": "subnet_prefix",
+    "INFINIMAP_FROM_DIR": "from_dir",
+    "INFINIMAP_LOG_LEVEL": "log_level",
 }
 
 
@@ -102,6 +133,14 @@ def from_env(base: Config | None = None, env: dict[str, str] | None = None) -> C
                 overrides[field] = float(raw)
             except ValueError:
                 raise ValueError(f"{var} must be a number, got {raw!r}") from None
+        elif field == "subnet_prefix":
+            # int(_, 0) infers the base, so "0xfe80..." and "255" both work.
+            try:
+                overrides[field] = int(raw, 0)
+            except ValueError:
+                raise ValueError(
+                    f"{var} must be a hex or decimal integer, got {raw!r}"
+                ) from None
         else:
             overrides[field] = raw
     return replace(base, **overrides) if overrides else base
