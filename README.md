@@ -1,24 +1,66 @@
-# infinimap
+<div align="center">
 
-[![CI](https://github.com/paulscherrerinstitute/infinimap/actions/workflows/ci.yml/badge.svg)](https://github.com/paulscherrerinstitute/infinimap/actions/workflows/ci.yml)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/brand/lockup-dark.svg">
+  <img alt="infinimap" src="assets/brand/lockup-light.svg" width="300">
+</picture>
 
-A live, time-aware map of an InfiniBand fabric.
+**A live, time-aware map of an InfiniBand fabric.**
+
+<a href="https://github.com/paulscherrerinstitute/infinimap/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/paulscherrerinstitute/infinimap/actions/workflows/ci.yml/badge.svg"></a>
+
+</div>
 
 It answers two questions: **what is broken now**, and **what changed, when, and
 what did it look like before**. Every collection run is recorded, so the fabric
 has a history you can scrub through.
 
-## What it does
+![The fabric as an interactive graph](assets/usage/01-overview.png)
 
-- **Topology map.** The fabric as an interactive graph - switches, HCAs and the
-  links between them, coloured by health: `ok`, `degraded`, `down`, `unknown`.
-- **Time travel.** Any view can be asked for at a past instant. A slider moves
-  the whole map through recorded history.
-- **Diffs and events.** What appeared, disappeared or changed between two
-  instants, including links that flapped and came back.
-- **Counters.** Per-port error deltas and transmit/receive rates over a window.
-- **Detail on demand.** Click a node or a link for port state, widths and speeds,
-  firmware, cables, and the reason a link is not healthy.
+<table>
+<tr>
+<td width="50%" valign="top">
+
+<img alt="Health mask" src="assets/usage/04-health.png">
+
+**See what is broken.** Every link judged against what both ends *could* have
+negotiated, so a cable quietly running at half rate shows up as loudly as one
+that is down.
+
+</td>
+<td width="50%" valign="top">
+
+<img alt="Diff mode" src="assets/usage/13-diff.png">
+
+**Scrub back to before it broke.** Ask for any instant, or diff two of them.
+See changes visually, and click on each node/link for what changed.
+
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+
+<img alt="Errors mask" src="assets/usage/05-errors.png">
+
+**Find the bad cable.** Per-port error deltas over a window you choose, grouped
+by what they accuse - the cable, the buffers, or a routing mistake.
+
+</td>
+<td width="50%" valign="top">
+
+<img alt="Utilisation mask" src="assets/usage/07-utilisation.png">
+
+**See where the traffic is.** How *full* each link is, and separately how *much*
+is moving - a saturated 25 G link and a quarter-full 100 G one carry the same
+data.
+
+</td>
+</tr>
+</table>
+
+Plus: chassis grouping, saved layouts, display-name overrides, and a detail card
+for any node or link with its ports, firmware, peers and the reason it is not
+healthy. Every view is a URL you can paste into a ticket.
 
 ## How it fits together
 
@@ -183,25 +225,85 @@ returns 404 for a fabric it has never seen.
 
 ## Configuration
 
-Settings resolve **flag → environment → config file → built-in default**.
+Settings resolve **flag → environment → config file → built-in default**, and
+each layer overrides the one after it.
 
-Pass the config file with `--config FILE`; each package ships a commented
+Pass the file with `--config FILE`; each half ships a fully commented
 `.toml.example` next to its code. Without `--config`, the commands fall back to
-`/etc/infinimap/api.toml` and `/etc/infinimap/collector.toml` if those exist.
-The environment overrides the file:
+`/etc/infinimap/api.toml` and `/etc/infinimap/collector.toml` if those exist,
+and to the built-in defaults if they do not.
 
-| Variable | Applies to |
-|---|---|
-| `INFINIMAP_DSN` | both |
-| `INFINIMAP_FABRIC` | both |
-| `INFINIMAP_HOST`, `INFINIMAP_PORT`, `INFINIMAP_WEB_ROOT` | API |
-| `INFINIMAP_INTERVAL`, `INFINIMAP_TRAFFIC_INTERVAL` | collector |
-| `INFINIMAP_MAX_CLOCK_SKEW` | collector |
+### API - `api.toml`
+
+| key | type | default | what it does |
+|---|---|---|---|
+| `dsn` | string | `postgresql:///infinimap` | libpq connection string. The API's role is read-only. |
+| `host` | string | `127.0.0.1` | Interface to bind. See [Reaching it from other machines](#reaching-it-from-other-machines) before setting `0.0.0.0` - the API is unauthenticated. |
+| `port` | int | `8000` | HTTP port. Serves the JSON API *and* the web UI. |
+| `fabric` | string | `default` | Fabric served when a request does not name one. |
+| `cors_origins` | array | Vite dev server | Browser origins allowed to call the API. Not needed at all when the API serves the built UI itself, which is same-origin. |
+| `pool_min` / `pool_max` | int | `1` / `8` | Connection pool bounds. Queries are short; raise `pool_max` only if requests queue behind each other. |
+| `id_to_name_path` | path | none | Display-name overrides - see `id_to_name.example.json`. |
+| `web_root` | path | auto | Built frontend to serve at `/`. Omit to look for one: bundled in the package first, then `frontend/dist` in a source checkout. |
+| `log_level` | string | `info` | `debug`/`info`/`warning`/`error`/`critical`. |
+
+### Collector - `collector.toml`
+
+| key | type | default | what it does |
+|---|---|---|---|
+| `dsn` | string | `postgresql:///infinimap` | libpq connection string. |
+| `fabric` | string | `default` | Logical fabric name, created on first sight. Two collectors writing different names to one database give you two fabrics in the UI's picker. |
+| `subnet_prefix` | string | none | IB subnet prefix, stamped on the fabric row at **first creation only**. |
+| `interval_s` | float | `300` | Topology + error cycle cadence, loop mode only. |
+| `traffic_interval_s` | float | `30` | Traffic sweep cadence. |
+| `query_timeout_s` | float | `120` | Seconds one `saquery` / `ibqueryerrors` invocation may take. **Raise this on a large fabric**. |
+| `max_clock_skew_s` | float | `5` | Refuse to start past this much disagreement with the database clock. `0` disables it. |
+| `from_dir` | path | unset | Read tool output from a fixture directory instead of running `saquery`. Development and replay only; still writes to a real database. |
+| `log_level` | string | `info` | As above. |
+
+### Environment variables
+
+Every setting in either file is reachable from the environment, and the
+environment overrides the file.
+
+| variable | applies to | file key |
+|---|---|---|
+| `INFINIMAP_DSN` | both | `dsn` |
+| `INFINIMAP_FABRIC` | both | `fabric` |
+| `INFINIMAP_LOG_LEVEL` | both | `log_level` |
+| `INFINIMAP_HOST` | API | `host` |
+| `INFINIMAP_PORT` | API | `port` |
+| `INFINIMAP_CORS_ORIGINS` | API | `cors_origins` **comma-separated** |
+| `INFINIMAP_POOL_MIN`, `INFINIMAP_POOL_MAX` | API | `pool_min`, `pool_max` |
+| `INFINIMAP_ID_TO_NAME` | API | `id_to_name_path` |
+| `INFINIMAP_WEB_ROOT` | API | `web_root` |
+| `INFINIMAP_INTERVAL` | collector | `interval_s` |
+| `INFINIMAP_TRAFFIC_INTERVAL` | collector | `traffic_interval_s` |
+| `INFINIMAP_QUERY_TIMEOUT` | collector | `query_timeout_s` |
+| `INFINIMAP_MAX_CLOCK_SKEW` | collector | `max_clock_skew_s` |
+| `INFINIMAP_SUBNET_PREFIX` | collector | `subnet_prefix` |
+| `INFINIMAP_FROM_DIR` | collector | `from_dir` |
+
+### Command-line flags
+
+```
+infinimap-api        [--config FILE] [--dsn DSN] [--openapi [FILE]] [-v]
+infinimap-collector  [--config FILE] [--dsn DSN] [--fabric NAME]
+                     [--interval SECONDS] [--query-timeout SECONDS]
+                     [--subnet-prefix PREFIX] [--from-dir DIR]
+                     [--once | --loop] [-v]
+infinimap-db         {check|migrate|init} [--dsn DSN] [-v]
+infinimap-db init    [--dbname NAME] [--api-password PW]
+                     [--collector-password PW] [--no-migrate]
+```
+
+`--openapi` writes the schema and exits; it needs no database.
+`-v` forces debug logging and beats `log_level` from any layer.
 
 ### Clocks
 
-The collector stamps history from its own clock, so both halves check themselves
-against the database's at startup. The collector refuses to run past
+The collector stamps history from its own clock, so both halves check
+themselves against the database's at startup. The collector refuses to run past
 `max_clock_skew_s` (5s by default); the API only warns.
 
 ## Operating
@@ -242,8 +344,3 @@ backend/infinimap/api/models.py → openapi.json → npm run gen:api → schema.
 ```
 
 Change the Pydantic model and regenerate both. Never hand-edit `schema.d.ts`.
-
-
-## Licence
-
-Not yet chosen. Until one is added, no licence is granted.
