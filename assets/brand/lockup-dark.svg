@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 344 100" width="344" height="100" role="img" aria-label="infinimap">
+  <!--
+    README lockup, for dark backgrounds. Two differences from the app's own
+    lockup in frontend/public/icons, both of which only matter outside the app:
+
+    1. The wordmark neutral is swapped per theme (see lockup-light.svg). The
+       app's #e6edef is invisible on a white page, and a README is read on
+       both.
+    2. textLength pins the wordmark's width. An SVG rendered as an image on
+       GitHub gets no web fonts, so JetBrains Mono is absent and an
+       unconstrained fallback would overflow the viewBox and be clipped.
+  -->
+  <g transform="translate(4,14) scale(0.72)">
+    <path d="M50 14 L20 42 L50 88 L80 42 Z" fill="none" stroke="#f2af48" stroke-width="7" stroke-linejoin="round"/>
+    <circle cx="50" cy="14" r="7" fill="#f2af48"/>
+    <circle cx="20" cy="42" r="7" fill="#f2af48"/>
+    <circle cx="80" cy="42" r="7" fill="#f2af48"/>
+    <circle cx="50" cy="88" r="6" fill="#f2af48"/>
+  </g>
+  <text x="92" y="64" textLength="240" lengthAdjust="spacingAndGlyphs"
+        font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
+        font-size="44" font-weight="500" fill="#e6edef">infini<tspan fill="#f2af48">map</tspan></text>
+</svg>
